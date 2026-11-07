@@ -9,6 +9,7 @@ from flask import Flask, g, jsonify, redirect, render_template_string, request, 
 from sqlalchemy import create_engine
 from werkzeug.security import check_password_hash, generate_password_hash
 
+import checkout
 import config
 import payments
 import wallet as W
@@ -609,7 +610,11 @@ def stripe_webhook():
     return "ok"
 
 
+checkout.register(app, api_key_required)
+
+
 if __name__ == "__main__":
     from merchant_verification.models import Base as VerificationBase
     VerificationBase.metadata.create_all(VERIFICATION_ENGINE)
+    checkout.ensure_tables()
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=True)

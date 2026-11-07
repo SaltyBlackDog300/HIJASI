@@ -50,7 +50,23 @@ GET /v1/topups/{topup_id}
     </section>
 
     <section class="panel doc-block">
-      <h2>Charge for an order</h2>
+      <h2>Wallet checkout (recommended for orders)</h2>
+      <p>Create a checkout session from your server and redirect the customer to its <code>url</code>. On our hosted page they confirm the payment with a one-time code; only then is the wallet charged. Sessions expire after 15 minutes, can be paid once, lock after 5 wrong codes, and only redirect to your registered website. Always check the result server-side; never trust the <code>status</code> in the return URL.</p>
+      <pre class="code">POST /v1/checkout_sessions
+Idempotency-Key: order-1007
+{ "customer_id": "cust_42", "amount": 24900, "reference": "order-1007",
+  "description": "Weekly veg box",
+  "success_url": "https://yourshop.com/order/1007", "cancel_url": "https://yourshop.com/cart" }
+
+→ 201 { "id": "cs_…", "status": "open", "url": "https://…/checkout/cs_…", "expires_at": "…" }
+
+# customer returns to success_url?checkout=cs_…&status=paid, then verify:
+GET /v1/checkout_sessions/{id}
+→ 200 { "id": "cs_…", "status": "paid", "amount": 24900, "transaction_id": "txn_…" }</pre>
+    </section>
+
+    <section class="panel doc-block">
+      <h2>Direct charge (for pre-authorised, merchant-initiated payments)</h2>
       <p>Send an <code>Idempotency-Key</code> header so a retried request never charges twice. Returns <code>402 insufficient_funds</code> if the balance is too low.</p>
       <pre class="code">POST /v1/wallets/{customer_id}/charges
 Idempotency-Key: order-1007

@@ -95,6 +95,8 @@ def seed_demo_application(mid):
 if __name__ == "__main__":
     currency = (sys.argv[1] if len(sys.argv) > 1 else "eur").lower()
     run_schema()
+    import checkout
+    checkout.ensure_tables()
     print("Schema ready.")
     key = seed_demo_merchant(currency)
     print(f"Demo merchant: {DEMO_EMAIL} / {DEMO_PASSWORD}  (currency {currency})")

@@ -126,6 +126,7 @@ def topup_status(topup_id):
 
 @app.post("/api/checkout")
 def checkout():
+    """Create a HIJASI hosted wallet checkout; the customer confirms the payment there."""
     cid = customer_id()
     if not cid:
         return jsonify({"error": {"message": "Not logged in"}}), 401
@@ -140,12 +141,26 @@ def checkout():
         lines.append(f"{qty}× {p['name']}")
     if total <= 0:
         return jsonify({"error": {"message": "Cart is empty"}}), 400
-    # The browser sends a per-checkout key so a double-click never charges twice.
+    # The browser sends a per-checkout key so a double-click never creates two checkouts.
     order_id = "order-" + re.sub(r"[^a-zA-Z0-9-]", "", str(d.get("checkout_id") or uuid.uuid4()))[:40]
-    status, data = hijasi("POST", f"/v1/wallets/{cid}/charges",
-                          {"amount": total, "reference": order_id,
-                           "description": ", ".join(lines)[:255]},
-                          idem=order_id)
+    status, data = hijasi("POST", "/v1/checkout_sessions", {
+        "customer_id": cid, "amount": total, "reference": order_id,
+        "description": ", ".join(lines)[:255],
+        "success_url": f"{FARM_URL}/", "cancel_url": f"{FARM_URL}/",
+    }, idem=order_id)
+    if status in (200, 201):
+        session["pending_checkout"] = data["id"]
+    return passthrough(status, data)
+
+
+@app.get("/api/checkout/<checkout_id>")
+def checkout_status(checkout_id):
+    """Verify the result server-side; never trust the ?status= in the return URL."""
+    if not customer_id() or session.get("pending_checkout") != checkout_id:
+        return jsonify({"error": {"message": "Unknown checkout"}}), 404
+    status, data = hijasi("GET", f"/v1/checkout_sessions/{checkout_id}")
+    if status == 200 and data.get("status") != "open":
+        session.pop("pending_checkout", None)
     return passthrough(status, data)
 
 

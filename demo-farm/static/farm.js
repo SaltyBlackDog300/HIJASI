@@ -72,8 +72,8 @@ async function loadWallet() {
 
 document.addEventListener("click", async e => {
   const t = e.target;
-  if (t.dataset.add) { cart[t.dataset.add] = (cart[t.dataset.add] || 0) + 1; renderCart(); }
-  if (t.dataset.dec) { if (--cart[t.dataset.dec] <= 0) delete cart[t.dataset.dec]; renderCart(); }
+  if (t.dataset.add) { cart[t.dataset.add] = (cart[t.dataset.add] || 0) + 1; saveCart(); renderCart(); }
+  if (t.dataset.dec) { if (--cart[t.dataset.dec] <= 0) delete cart[t.dataset.dec]; saveCart(); renderCart(); }
   if (t.dataset.topup) {
     t.disabled = true;
     try {
@@ -91,12 +91,17 @@ $("#payBtn").addEventListener("click", async () => {
   try {
     const items = Object.entries(cart).map(([id, qty]) => ({ id, qty }));
     const r = await call("/api/checkout", { method: "POST", body: { items, checkout_id: checkoutId } });
-    cart = {};
-    checkoutId = newCheckoutId();
-    notice(`Order paid! ${money(-r.amount)} taken from your wallet. Delivery on Saturday.`);
-    await loadWallet();
+    saveCart();
+    location.href = r.url;   // HIJASI secure checkout: the customer confirms with a one-time code
   } catch (err) { notice(err.message, "error"); btn.disabled = false; }
 });
+
+function saveCart() { try { sessionStorage.setItem("farm_cart", JSON.stringify(cart)); } catch (_) {} }
+function restoreCart() {
+  try { const c = JSON.parse(sessionStorage.getItem("farm_cart") || "{}"); if (c && typeof c === "object") cart = c; } catch (_) {}
+  for (const id of Object.keys(cart)) if (!products.some(p => p.id === id) || !Number.isInteger(cart[id]) || cart[id] < 1) delete cart[id];
+}
+function clearCart() { cart = {}; checkoutId = newCheckoutId(); try { sessionStorage.removeItem("farm_cart"); } catch (_) {} }
 
 $("#loginForm").addEventListener("submit", async e => {
   e.preventDefault();
@@ -110,6 +115,18 @@ $("#logout").addEventListener("click", async () => { await call("/api/logout", {
 
 async function handleReturn() {
   const q = new URLSearchParams(location.search);
+  const cs = q.get("checkout");
+  if (cs) {
+    history.replaceState(null, "", "/");
+    try {
+      const r = await call(`/api/checkout/${encodeURIComponent(cs)}`);   // verified server-side
+      if (r.status === "paid") { clearCart(); notice(`Order paid! ${money(r.amount)} taken from your wallet. Delivery on Saturday.`); }
+      else notice(`Payment ${r.status}. Your basket is still here.`, "error");
+    } catch (err) { notice(err.message, "error"); }
+    renderCart();
+    await loadWallet();
+    return;
+  }
   const id = q.get("topup");
   if (!id) return;
   history.replaceState(null, "", "/");
@@ -126,6 +143,7 @@ async function start() {
     products = p.products;
     currency = p.currency;
     renderProducts();
+    restoreCart();
     renderTopups(p.policy);
     await loadWallet();
     $("#loginView").classList.add("hidden");
