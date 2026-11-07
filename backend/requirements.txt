@@ -1,0 +1,5 @@
+flask>=3.0
+pymysql>=1.1
+cryptography>=42
+stripe>=10
+python-dotenv>=1.0

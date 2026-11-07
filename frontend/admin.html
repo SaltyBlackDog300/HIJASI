@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin — HIJASI</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div class="wrap">
+    <nav class="nav">
+      <a class="brand" href="/">HIJA<span>SI</span> <span class="muted" style="font-weight:500">admin</span></a>
+    </nav>
+
+    <div id="loginView" class="hidden" style="display:grid;place-items:center;padding:30px 0">
+      <form id="loginForm" class="card narrow">
+        <h2>Admin login</h2>
+        <div id="loginAlert" class="hidden"></div>
+        <label>Admin token</label><input name="token" type="password" required>
+        <button class="btn primary wide">Log in</button>
+      </form>
+    </div>
+
+    <div id="mainView" class="hidden">
+      <p class="eyebrow">Platform overview</p>
+      <div class="grid cols-4" style="margin-bottom:20px">
+        <div class="card"><div class="stat" id="sPending">—</div><div class="stat-label">Waiting for review</div></div>
+        <div class="card"><div class="stat" id="sApproved">—</div><div class="stat-label">Approved merchants</div></div>
+        <div class="card"><div class="stat" id="sWallets">—</div><div class="stat-label">Wallets</div></div>
+        <div class="card"><div class="stat" id="sVolume">—</div><div class="stat-label">Top-up volume (minor units, all currencies)</div></div>
+      </div>
+
+      <div class="card">
+        <h2>Merchant applications</h2>
+        <p class="muted">Approve only real, verifiable businesses. Red flags are keyword hits in the application.</p>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Business</th><th>Type</th><th>Country</th><th>Website</th><th>Status</th><th>Flags</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/common.js"></script>
+  <script src="/static/js/admin.js"></script>
+</body>
+</html>

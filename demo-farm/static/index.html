@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Green Valley Farm</title>
+  <link rel="stylesheet" href="/static/farm.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap bar">
+      <div class="logo">🌾 Green Valley Farm</div>
+      <div id="who" class="who hidden"><span id="whoName"></span> <button id="logout" class="link">Log out</button></div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <div id="notice" class="notice hidden"></div>
+
+    <section id="loginView" class="panel login hidden">
+      <h1>Fresh from the farm, every week.</h1>
+      <p>Top up your farm wallet once and we deliver all month. No card details at the door.</p>
+      <form id="loginForm">
+        <input name="name" placeholder="Your name" required>
+        <input name="phone" placeholder="Phone number" inputmode="tel" required>
+        <button class="btn">Continue</button>
+      </form>
+    </section>
+
+    <div id="shopView" class="layout hidden">
+      <section>
+        <h2>This week's produce</h2>
+        <div id="products" class="products"></div>
+      </section>
+
+      <aside>
+        <div class="panel wallet">
+          <div class="label">Farm wallet</div>
+          <div id="balance" class="balance">—</div>
+          <div class="topups" id="topupBtns"></div>
+          <p class="fine">Payments are processed securely by HIJASI. Wallet credit can only be used at Green Valley Farm.</p>
+        </div>
+
+        <div class="panel">
+          <h3>Your basket</h3>
+          <div id="cart" class="cart"></div>
+          <div class="total"><span>Total</span><b id="cartTotal">—</b></div>
+          <button id="payBtn" class="btn wide" disabled>Pay with wallet</button>
+        </div>
+
+        <div class="panel">
+          <h3>Wallet history</h3>
+          <ul id="history" class="history"></ul>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <script src="/static/farm.js"></script>
+</body>
+</html>
