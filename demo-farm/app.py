@@ -21,7 +21,11 @@ FARM_URL = os.getenv("FARM_URL", "http://127.0.0.1:5001").rstrip("/")
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 app.secret_key = os.getenv("FARM_SECRET_KEY", "farm-dev-secret")
 # Both apps run on localhost; cookies ignore the port, so use a distinct cookie name.
-app.config.update(SESSION_COOKIE_NAME="farm_session", SESSION_COOKIE_SAMESITE="Lax")
+app.config.update(SESSION_COOKIE_NAME="farm_session", SESSION_COOKIE_SAMESITE="Lax",
+                  SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SECURE=FARM_URL.startswith("https://"))
+if FARM_URL.startswith("https://"):  # behind the host's HTTPS front-end
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
 # Prices in minor units of the merchant's currency.
 PRODUCTS = [
@@ -165,4 +169,4 @@ def checkout_status(checkout_id):
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5001")), debug=True)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5001")), debug=not FARM_URL.startswith("https://"))

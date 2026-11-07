@@ -1,4 +1,4 @@
-# HIJASI
+# Kassara (repo: HIJASI)
 
 **Closed-loop wallet API for businesses in countries that Stripe and PayPal don't serve.**
 
@@ -21,6 +21,8 @@ Team: Siam, Hieu, Jason — Oslo sprint hackathon 2026.
 | `frontend/` | Landing page, merchant dashboard, admin panel, API docs (plain HTML/CSS/JS) |
 | `backend/merchant_verification/` | Merchant verification module (declarations, human review, audit trail), mounted at `/verification` |
 | `demo-farm/` | **Green Valley Farm**, a separate demo shop that integrates over the API (port 5001) |
+
+Live deployment on cPanel: see [DEPLOY.md](DEPLOY.md).
 
 ## Run it
 
@@ -53,7 +55,7 @@ python app.py               # http://localhost:5001
 ## Demo script
 
 1. **Farm shop** — http://localhost:5001: log in with any name + phone, top up 50.00, pay, buy a veg box.
-2. **Merchant dashboard** — http://localhost:5000/merchant, log in as `farm@demo.hijasi` / `farmdemo123`:
+2. **Merchant dashboard** — http://localhost:5000/merchant, log in as `farm@demo.kassara.org` / `farmdemo123`:
    wallet balances, ledger, API key, top-up limits.
 3. **New merchant** — apply at `/merchant#register`, then fill in the verification declaration,
    save a draft and submit it.

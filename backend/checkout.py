@@ -1,4 +1,4 @@
-"""HIJASI hosted wallet checkout ("Pay with wallet").
+"""Kassara hosted wallet checkout ("Pay with wallet").
 
 The merchant's server creates a checkout session; the customer is redirected to
 our hosted page, confirms with a one-time code, and only then is the wallet
@@ -134,12 +134,12 @@ PAGE = """<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
-<title>Pay {{ amount }} — HIJASI Checkout</title>
+<title>Pay {{ amount }} — Kassara Checkout</title>
 <link rel="stylesheet" href="/static/css/checkout.css">
 </head><body>
 <main class="co">
   <header class="co-head">
-    <span class="co-brand"><span class="mark">◈</span> hijasi <span class="lock">🔒 Secure checkout</span></span>
+    <span class="co-brand"><span class="mark">◈</span> kassara <span class="lock">🔒 Secure checkout</span></span>
   </header>
   <section class="co-card">
     <p class="co-merchant">{{ s.business_name }}</p>
@@ -188,7 +188,7 @@ PAGE = """<!doctype html>
       <a class="btn ghost" href="{{ return_url }}">Return to {{ s.business_name }}</a>
     {% endif %}
   </section>
-  <footer class="co-foot">Wallet credit can only be spent at {{ s.business_name }}. HIJASI never asks for card details on this page.</footer>
+  <footer class="co-foot">Wallet credit can only be spent at {{ s.business_name }}. Kassara never asks for card details on this page.</footer>
 </main>
 </body></html>"""
 

@@ -18,7 +18,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEMO_EMAIL = "farm@demo.hijasi"
+DEMO_EMAIL = "farm@demo.kassara.org"
+OLD_DEMO_EMAIL = "farm@demo.hijasi"
+# Where the demo shop runs, and the API URL it should call (override both in production).
+DEMO_FARM_URL = os.getenv("DEMO_FARM_URL", "http://127.0.0.1:5001").rstrip("/")
+DEMO_FARM_API_URL = os.getenv("DEMO_FARM_API_URL", config.PUBLIC_URL).rstrip("/")
 DEMO_PASSWORD = "farmdemo123"
 
 
@@ -31,25 +35,34 @@ def run_schema():
     sql = "\n".join(line.split("--", 1)[0] for line in sql.splitlines())  # drop SQL comments
     with conn.cursor() as cur:
         for stmt in (s.strip() for s in sql.split(";")):
-            if stmt:
-                cur.execute(stmt)
+            if not stmt:
+                continue
+            if stmt.upper().startswith("CREATE DATABASE"):
+                try:   # shared hosting: the database is created in cPanel and this is not permitted
+                    cur.execute(stmt)
+                except pymysql.err.MySQLError:
+                    pass
+                continue
+            cur.execute(stmt)
     conn.close()
 
 
 def seed_demo_merchant(currency):
     from db import tx
     with tx() as cur:
+        cur.execute("UPDATE merchants SET email=%s WHERE email=%s", (DEMO_EMAIL, OLD_DEMO_EMAIL))
         cur.execute("SELECT id FROM merchants WHERE email=%s", (DEMO_EMAIL,))
         row = cur.fetchone()
         if row:
             mid = row["id"]
+            cur.execute("UPDATE merchants SET website=%s WHERE id=%s", (DEMO_FARM_URL, mid))
         else:
             cur.execute(
                 """INSERT INTO merchants (business_name, email, password_hash, website, country, business_type,
                    description, currency, status, reviewed_at)
                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'approved',NOW())""",
                 ("Green Valley Farm", DEMO_EMAIL, generate_password_hash(DEMO_PASSWORD),
-                 "http://127.0.0.1:5001", "IN", "farm",
+                 DEMO_FARM_URL, "IN", "farm",
                  "Family farm delivering weekly vegetable boxes, eggs and milk. Customers prepay monthly.",
                  currency),
             )
@@ -63,8 +76,8 @@ def seed_demo_merchant(currency):
 
     env_path = os.path.join(HERE, "..", "demo-farm", ".env")
     with open(env_path, "w", encoding="utf-8") as f:
-        f.write(f"HIJASI_URL=http://127.0.0.1:5000\nHIJASI_SECRET_KEY={raw}\n"
-                f"FARM_URL=http://127.0.0.1:5001\nFARM_SECRET_KEY={secrets.token_hex(16)}\n")
+        f.write(f"HIJASI_URL={DEMO_FARM_API_URL}\nHIJASI_SECRET_KEY={raw}\n"
+                f"FARM_URL={DEMO_FARM_URL}\nFARM_SECRET_KEY={secrets.token_hex(16)}\n")
     return raw
 
 
@@ -78,7 +91,7 @@ def seed_demo_application(mid):
                         review_reason="Demo merchant seeded as approved.", details={
             "legal_name": "Green Valley Farm", "registration_number": "DEMO-0001",
             "registration_country": "IN", "contact_name": "Demo Owner",
-            "contact_email": DEMO_EMAIL, "website": "http://127.0.0.1:5001",
+            "contact_email": DEMO_EMAIL, "website": DEMO_FARM_URL,
             "product_category": "food_and_drink",
             "product_description": "Weekly vegetable boxes, eggs and milk. Customers prepay monthly.",
             "sample_products": ["Weekly veg box", "Free-range eggs", "Fresh milk"],

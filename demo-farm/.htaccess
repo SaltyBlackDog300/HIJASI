@@ -1,0 +1,6 @@
+# Block all direct web access to this folder (code and .env). Passenger still runs the app.
+Require all denied
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Deny from all
+</IfModule>

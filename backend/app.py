@@ -7,6 +7,7 @@ from urllib.parse import quote_plus, urlencode, urlparse
 
 from flask import Flask, g, jsonify, redirect, render_template_string, request, send_from_directory, session
 from sqlalchemy import create_engine
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import checkout
@@ -22,7 +23,21 @@ FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "fr
 app = Flask(__name__, static_folder=FRONTEND_DIR, static_url_path="/static")
 app.secret_key = config.SECRET_KEY
 app.config.update(SESSION_COOKIE_NAME="hijasi_session", SESSION_COOKIE_HTTPONLY=True,
-                  SESSION_COOKIE_SAMESITE="Lax")
+                  SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_SECURE=config.PRODUCTION)
+if config.TRUST_PROXY:  # the hosting front-end terminates HTTPS and forwards the request
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+
+
+@app.after_request
+def security_headers(resp):
+    resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+    resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    resp.headers.setdefault("X-Frame-Options", "DENY")
+    if config.PRODUCTION:
+        resp.headers["Strict-Transport-Security"] = "max-age=31536000"
+    if request.path.startswith(("/api/", "/v1/")):
+        resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 # ---------------------------------------------------------------- merchant verification module
 # Teammate's review module (declarations, human review, audit trail), mounted at /verification.
@@ -213,6 +228,11 @@ def page_merchant():
 @app.get("/admin")
 def page_admin():
     return send_from_directory(FRONTEND_DIR, "admin.html")
+
+
+@app.get("/demo")
+def demo_shop():
+    return redirect(config.DEMO_SHOP_URL)
 
 
 @app.get("/docs")
@@ -617,4 +637,4 @@ if __name__ == "__main__":
     from merchant_verification.models import Base as VerificationBase
     VerificationBase.metadata.create_all(VERIFICATION_ENGINE)
     checkout.ensure_tables()
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=True)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=not config.PRODUCTION)

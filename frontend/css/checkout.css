@@ -1,4 +1,4 @@
-/* HIJASI hosted wallet checkout — self-contained (no external fonts/scripts, strict CSP). */
+/* Kassara hosted wallet checkout — self-contained (no external fonts/scripts, strict CSP). */
 :root{--ink:#183627;--muted:#7a8b7e;--line:#e3eae2;--bg:#f3f6f2;--green:#247e4c;--green-d:#1a693d;--dark:#122d24;--bad:#ab4c45;--bad-bg:#fbefee;--ok-bg:#e9f6e9}
 *{box-sizing:border-box}
 body{margin:0;min-height:100vh;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;justify-content:center}

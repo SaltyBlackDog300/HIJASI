@@ -21,3 +21,10 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
 # Wallet checkout: show the one-time code on the page instead of sending an SMS (demo only).
 DEMO_SHOW_CODES = os.getenv("DEMO_SHOW_CODES", "true").lower() in ("1", "true", "yes")
+
+# Production (https://kassara.org): secure cookies, HSTS, and trust the host's HTTPS proxy headers.
+PRODUCTION = os.getenv("PRODUCTION", "false").lower() in ("1", "true", "yes")
+TRUST_PROXY = os.getenv("TRUST_PROXY", "true" if PRODUCTION else "false").lower() in ("1", "true", "yes")
+
+# Where the "demo shop" links on the landing page go.
+DEMO_SHOP_URL = os.getenv("DEMO_SHOP_URL", "http://127.0.0.1:5001").rstrip("/")
