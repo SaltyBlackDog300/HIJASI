@@ -110,7 +110,11 @@ if __name__ == "__main__":
     run_schema()
     import checkout
     checkout.ensure_tables()
+    import migrations
+    migrations.run()
     print("Schema ready.")
     key = seed_demo_merchant(currency)
+    from db import query
+    query("UPDATE merchants SET email_verified=1 WHERE email=%s", (DEMO_EMAIL,))
     print(f"Demo merchant: {DEMO_EMAIL} / {DEMO_PASSWORD}  (currency {currency})")
     print(f"Secret key written to demo-farm/.env  ({key[:12]}…)")

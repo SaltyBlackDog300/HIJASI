@@ -63,6 +63,12 @@ DEMO_SHOW_CODES=true
 DEMO_SHOP_URL=https://demo.kassara.org
 DEMO_FARM_URL=https://demo.kassara.org
 DEMO_FARM_API_URL=https://kassara.org
+
+SMTP_HOST=mail.kassara.org
+SMTP_PORT=465
+SMTP_USER=no-reply@kassara.org
+SMTP_PASSWORD=<the mailbox password>
+MAIL_FROM=no-reply@kassara.org
 ```
 
 Then right-click `.env` → **Change Permissions** → `600`. Never commit this file (it is in `.gitignore`).
@@ -127,6 +133,19 @@ Stripe Dashboard (test mode) → **Developers → Webhooks → Add endpoint**
 Copy the signing secret (`whsec_…`) into `STRIPE_WEBHOOK_SECRET` in `.env`, then restart the app.
 Top-ups are also confirmed with Stripe directly when the customer returns, so the webhook is a
 safety net for customers who close the tab.
+
+## 9. Email (verification links, receipts, checkout codes)
+
+**Email → Email Accounts → Create**: `no-reply@kassara.org` with a strong password. Put it in the
+`SMTP_*` lines of `.env` (step 3) and restart. Kassara then sends:
+- merchants: a confirm-your-email link at signup (needed before submitting the application and before
+  creating API keys), and an email when the application is approved, rejected, suspended or needs info;
+- customers (when the shop passes `email` to `POST /v1/wallets`): top-up, payment and refund receipts,
+  and the one-time checkout code.
+
+With `SMTP_HOST` empty, emails are written to `stderr.log` instead. Merchant accounts that existed before
+this update are marked as verified automatically. For better inbox delivery, make sure
+**Email → Email Deliverability** shows SPF and DKIM as valid for kassara.org.
 
 ## Shared-hosting limitations
 

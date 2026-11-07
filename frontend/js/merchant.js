@@ -185,9 +185,31 @@ async function saveVerification(submit) {
   }
 }
 
+function renderEmailVerify(m) {
+  const box = $("email-verify");
+  const verified = m.email_verified;
+  box.hidden = verified && location.hash !== "#verified";
+  $("resend-verification").hidden = verified;
+  $("email-verify-text").textContent = verified
+    ? "Email confirmed. You can submit your application."
+    : (location.hash === "#verify-failed" ? "That link is invalid or expired. " : "") +
+      `Confirm your email first: we sent a link to ${m.email}. Check your spam folder too.`;
+  $("submit-application").disabled = !verified;
+}
+
+$("resend-verification").addEventListener("click", async (e) => {
+  e.target.disabled = true;
+  try {
+    await api("/api/auth/resend-verification", { method: "POST" });
+    $("email-verify-text").textContent = `New link sent to ${verif.merchant.email}.`;
+  } catch (err) { $("email-verify-text").textContent = err.message; }
+  finally { setTimeout(() => { e.target.disabled = false; }, 60000); }
+});
+
 async function showPending(m) {
   verif.merchant = m;
   showScreen("pending-screen");
+  renderEmailVerify(m);
   if (!verif.schema) { verif.schema = await api("/verification/form"); renderVerificationFields(); }
   try { verif.app = await api(vPath()); }
   catch (err) { if (err.status === 404) verif.app = null; else throw err; }

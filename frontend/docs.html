@@ -28,9 +28,11 @@
   <main class="site-main docs">
     <section class="panel doc-block">
       <h2>Create or fetch a wallet</h2>
-      <p>Call this when a customer first uses your shop. It is safe to call again.</p>
+      <p>Call this when a customer first uses your shop. It is safe to call again. Pass an optional
+        <code>email</code> and Kassara emails the customer their checkout codes and a receipt for every
+        top-up, payment and refund.</p>
       <pre class="code">POST /v1/wallets
-{ "customer_id": "cust_42", "display_name": "Ravi Kumar" }
+{ "customer_id": "cust_42", "display_name": "Ravi Kumar", "email": "ravi@example.com" }
 
 → 200 { "customer_id": "cust_42", "balance": 0, "currency": "inr", "status": "active" }
 

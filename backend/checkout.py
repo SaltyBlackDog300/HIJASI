@@ -25,6 +25,7 @@ from urllib.parse import urlencode, urlparse
 from flask import abort, g, jsonify, redirect, render_template_string, request, session
 
 import config
+import mailer
 import wallet as W
 from db import query, tx
 from errors import ApiError
@@ -229,7 +230,7 @@ def _check_csrf():
 
 # ---------------------------------------------------------------- routes
 
-def register(app, api_key_required):
+def register(app, api_key_required, notify_entry=lambda _id: None):
 
     @app.after_request
     def checkout_headers(resp):
@@ -317,9 +318,17 @@ def register(app, api_key_required):
                            code_sends=code_sends+1 WHERE id=%s""",
                         (_code_hash(sid, code), _now() + CODE_TTL, sid))
             s.update(code_hash="x", code_sends=s["code_sends"] + 1)
-        # Production: send `code` by SMS/email to the wallet holder. Demo: show it on the page.
-        return _render(s, "We sent a 6-digit code. It is valid for 5 minutes.", "info",
-                       demo_code=code if config.DEMO_SHOW_CODES else None)
+        w = query("""SELECT w.email, m.business_name, m.currency FROM checkout_sessions c
+                     JOIN merchants m ON m.id=c.merchant_id
+                     JOIN wallets w ON w.id=c.wallet_id
+                     WHERE c.id=%s""", (sid,), one=True)
+        emailed = bool(w and w["email"]) and mailer.send(
+            w["email"], f"Your {w['business_name']} payment code: {code}",
+            [f"Your one-time code to pay {mailer.money(s['amount'], w['currency'])} at {w['business_name']} is:",
+             code, "It expires in 5 minutes. Never share this code. If you didn't start this payment, ignore this email."])
+        msg = ("We emailed you a 6-digit code. It is valid for 5 minutes." if emailed
+               else "Your 6-digit code is ready. It is valid for 5 minutes.")
+        return _render(s, msg, "info", demo_code=code if config.DEMO_SHOW_CODES else None)
 
     @app.post("/checkout/<sid>/confirm")
     def checkout_confirm(sid):
@@ -352,6 +361,7 @@ def register(app, api_key_required):
                 return _render(s, e.message, "error")
             cur.execute("""UPDATE checkout_sessions SET status='paid', ledger_entry_id=%s, completed_at=%s,
                            code_hash=NULL WHERE id=%s""", (entry["id"], _now(), sid))
+        notify_entry(entry["id"])
         return redirect(_with_params(s["success_url"], checkout=sid, status="paid"), code=303)
 
     @app.post("/checkout/<sid>/cancel")

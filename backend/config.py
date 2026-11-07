@@ -28,3 +28,11 @@ TRUST_PROXY = os.getenv("TRUST_PROXY", "true" if PRODUCTION else "false").lower(
 
 # Where the "demo shop" links on the landing page go.
 DEMO_SHOP_URL = os.getenv("DEMO_SHOP_URL", "http://127.0.0.1:5001").rstrip("/")
+
+# Outgoing email (cPanel mailbox). Leave SMTP_HOST empty to print emails to the log instead.
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+MAIL_FROM = os.getenv("MAIL_FROM", SMTP_USER or "no-reply@kassara.org")
+MAIL_FROM_NAME = os.getenv("MAIL_FROM_NAME", "Kassara")

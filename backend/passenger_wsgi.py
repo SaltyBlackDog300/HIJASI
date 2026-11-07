@@ -14,5 +14,7 @@ try:
 
     _VerificationBase.metadata.create_all(VERIFICATION_ENGINE)
     checkout.ensure_tables()
+    import migrations
+    migrations.run()
 except Exception as exc:  # the app still starts; run seed.py to create the schema
     print(f"[kassara] table check skipped: {exc}", file=sys.stderr)

@@ -83,7 +83,11 @@ def login():
     if not name or len(phone) < 6:
         return jsonify({"error": {"message": "Enter your name and phone number"}}), 400
     cid = f"cust_{phone}"
-    status, data = hijasi("POST", "/v1/wallets", {"customer_id": cid, "display_name": name})
+    payload = {"customer_id": cid, "display_name": name}
+    email = (d.get("email") or "").strip()[:190]
+    if email:
+        payload["email"] = email
+    status, data = hijasi("POST", "/v1/wallets", payload)
     if status != 200:
         return passthrough(status, data)
     session["customer_id"] = cid

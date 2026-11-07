@@ -12,6 +12,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 import checkout
 import config
+import mailer
+import migrations
 import payments
 import wallet as W
 from db import query, tx
@@ -84,6 +86,23 @@ def sync_merchant_status(merchant_id, review_status, reason):
                     (status, (reason or "")[:255] or None, int(merchant_id)))
         if status != "approved":
             cur.execute("UPDATE api_keys SET revoked=1 WHERE merchant_id=%s", (int(merchant_id),))
+    m = query("SELECT business_name, email FROM merchants WHERE id=%s", (int(merchant_id),), one=True)
+    if m and review_status in ("approved", "rejected", "suspended", "needs_information"):
+        texts = {
+            "approved": ("Your Kassara account is approved",
+                         "Good news: your business has been approved. You can now generate an API key and start integrating."),
+            "rejected": ("Your Kassara application was not approved",
+                         "We reviewed your application and could not approve it."),
+            "suspended": ("Your Kassara account has been suspended",
+                          "Your account has been suspended and its API key no longer works."),
+            "needs_information": ("Kassara needs more information",
+                                  "Our reviewer needs more information before your application can continue."),
+        }
+        subject, line = texts[review_status]
+        lines = [f"Hi {m['business_name']},", line]
+        if reason:
+            lines.append(f"Reviewer's note: {reason}")
+        mailer.send(m["email"], subject, lines, ("Open your dashboard", f"{config.PUBLIC_URL}/merchant"))
 
 
 @app.after_request
@@ -156,11 +175,70 @@ def merchant_public(m):
         "description": m["description"],
         "currency": m["currency"],
         "status": m["status"],
+        "email_verified": bool(m.get("email_verified")),
         "review_note": m["review_note"],
         "policy": {"min_topup": m["min_topup"], "max_topup": m["max_topup"],
                    "max_balance": m["max_balance"]},
         "created_at": m["created_at"].isoformat() if m.get("created_at") else None,
     }
+
+
+VERIFY_TTL = 48  # hours
+
+
+def send_verification_email(merchant_id):
+    raw = secrets.token_urlsafe(32)
+    with tx() as cur:
+        cur.execute("""UPDATE merchants SET verify_token_hash=%s, verify_expires_at=NOW() + INTERVAL %s HOUR,
+                       verify_sent_at=NOW() WHERE id=%s""", (hash_key(raw), VERIFY_TTL, merchant_id))
+        cur.execute("SELECT business_name, email FROM merchants WHERE id=%s", (merchant_id,))
+        m = cur.fetchone()
+    mailer.send(m["email"], "Confirm your email for Kassara",
+                [f"Hi {m['business_name']},",
+                 "Please confirm your email address to continue your Kassara merchant application.",
+                 f"This link expires in {VERIFY_TTL} hours. If you didn't sign up, ignore this email."],
+                ("Confirm my email", f"{config.PUBLIC_URL}/verify-email?token={raw}"))
+
+
+def notify_entry(entry_id):
+    """Email the wallet holder a receipt for a ledger entry (if we have their email)."""
+    if not entry_id:
+        return
+    e = query("""SELECT e.*, w.email AS wallet_email, w.display_name, w.balance AS wallet_balance,
+                        m.business_name, m.currency
+                 FROM ledger_entries e JOIN wallets w ON w.id=e.wallet_id JOIN merchants m ON m.id=e.merchant_id
+                 WHERE e.id=%s""", (entry_id,), one=True)
+    if not e or not e["wallet_email"]:
+        return
+    amt, bal = mailer.money(abs(e["amount"]), e["currency"]), mailer.money(e["balance_after"], e["currency"])
+    shop = e["business_name"]
+    greeting = f"Hi {e['display_name']}," if e["display_name"] else "Hi,"
+    if e["type"] == "topup":
+        subject, line = f"Receipt: {amt} added to your {shop} wallet", f"You topped up your {shop} wallet with {amt}."
+    elif e["type"] == "charge":
+        subject = f"Receipt: {amt} paid at {shop}"
+        line = f"You paid {amt} from your {shop} wallet" + (f" for: {e['description']}." if e["description"] else ".")
+    elif e["type"] == "refund":
+        subject, line = f"Refund: {amt} back in your {shop} wallet", f"{shop} refunded {amt} to your wallet."
+    else:
+        return
+    mailer.send(e["wallet_email"], subject,
+                [greeting, line, f"New balance: {bal}", f"Transaction: {e['public_id']}",
+                 f"Wallet credit can only be spent at {shop}."])
+
+
+def credit_and_notify(topup_id):
+    """Credit a confirmed top-up exactly once and email a receipt the first time."""
+    with tx() as cur:
+        cur.execute("SELECT status FROM topups WHERE id=%s FOR UPDATE", (topup_id,))
+        was = cur.fetchone()["status"]
+        t = W.credit_topup(cur, topup_id)
+    if was != "succeeded" and t["status"] == "succeeded":
+        notify_entry(t["ledger_entry_id"])
+    return t
+
+
+EMAIL_RE = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
 
 
 def risk_flags(m):
@@ -280,7 +358,44 @@ def register():
         )
         mid = cur.lastrowid
     session["merchant_id"] = mid
+    send_verification_email(mid)
     return jsonify({"ok": True, "csrf_token": csrf_token()}), 201
+
+
+@app.get("/verify-email")
+def verify_email():
+    raw = request.args.get("token", "")
+    m = query("SELECT id FROM merchants WHERE verify_token_hash=%s AND verify_expires_at > NOW()",
+              (hash_key(raw),), one=True) if raw else None
+    if not m:
+        return redirect("/merchant#verify-failed")
+    query("""UPDATE merchants SET email_verified=1, verify_token_hash=NULL, verify_expires_at=NULL
+             WHERE id=%s""", (m["id"],))
+    return redirect("/merchant#verified")
+
+
+@app.post("/api/auth/resend-verification")
+@login_required
+def resend_verification():
+    m = g.merchant
+    if m.get("email_verified"):
+        return jsonify({"ok": True, "already_verified": True})
+    recent = query("SELECT verify_sent_at > NOW() - INTERVAL 60 SECOND AS recent FROM merchants WHERE id=%s",
+                   (m["id"],), one=True)
+    if recent and recent["recent"]:
+        raise ApiError(429, "too_soon", "Please wait a minute before requesting another email")
+    send_verification_email(m["id"])
+    return jsonify({"ok": True})
+
+
+@app.before_request
+def require_verified_email_to_submit():
+    """Applications can only be submitted for review once the merchant's email is confirmed."""
+    if request.method == "POST" and re.fullmatch(r"/verification/merchants/\d+/application/submit", request.path):
+        mid = session.get("merchant_id")
+        m = query("SELECT email_verified FROM merchants WHERE id=%s", (mid,), one=True) if mid else None
+        if m and not m["email_verified"]:
+            raise ApiError(403, "email_not_verified", "Confirm your email address before submitting")
 
 
 @app.post("/api/auth/login")
@@ -323,6 +438,8 @@ def roll_key():
     m = g.merchant
     if m["status"] != "approved":
         raise ApiError(403, "merchant_not_approved", "Your account must be approved first")
+    if not m.get("email_verified"):
+        raise ApiError(403, "email_not_verified", "Confirm your email address first")
     raw = "sk_test_" + secrets.token_urlsafe(24)
     with tx() as cur:
         cur.execute("UPDATE api_keys SET revoked=1 WHERE merchant_id=%s", (m["id"],))
@@ -465,8 +582,13 @@ def v1_me():
 @api_key_required
 def v1_create_wallet():
     d = body()
+    email = (d.get("email") or "").strip().lower() or None
+    if email and (len(email) > 190 or not EMAIL_RE.fullmatch(email)):
+        raise ApiError(400, "invalid_email", "email must be a valid email address")
     with tx() as cur:
         w = W.get_or_create_wallet(cur, g.merchant["id"], d.get("customer_id"), d.get("display_name"))
+        if email:
+            cur.execute("UPDATE wallets SET email=%s WHERE id=%s", (email, w["id"]))
     return jsonify(W.wallet_out(w, g.merchant["currency"]))
 
 
@@ -527,8 +649,7 @@ def _sync_topup(public_id, merchant_id=None):
     if not t:
         raise ApiError(404, "topup_not_found", "No top-up with that id")
     if t["status"] == "pending" and payments.is_paid(t):
-        with tx() as cur:
-            t = W.credit_topup(cur, t["id"])
+        t = credit_and_notify(t["id"])
     return t
 
 
@@ -549,10 +670,13 @@ def v1_charge(customer_id):
     d = body()
     idem = request.headers.get("Idempotency-Key")
     with tx() as cur:
+        replay = bool(W._existing_by_idem(cur, g.merchant["id"], idem))
         e = W.charge(cur, g.merchant, customer_id, d.get("amount"),
                      (d.get("reference") or None), (d.get("description") or None), idem)
         cur.execute("SELECT balance FROM wallets WHERE id=%s", (e["wallet_id"],))
         balance = cur.fetchone()["balance"]
+    if not replay:
+        notify_entry(e["id"])
     return jsonify({**W.entry_out(e), "balance": balance}), 201
 
 
@@ -562,7 +686,10 @@ def v1_refund():
     d = body()
     idem = request.headers.get("Idempotency-Key")
     with tx() as cur:
+        replay = bool(W._existing_by_idem(cur, g.merchant["id"], idem))
         e = W.refund(cur, g.merchant, d.get("charge_id"), d.get("amount"), d.get("reason"), idem)
+    if not replay:
+        notify_entry(e["id"])
     return jsonify(W.entry_out(e)), 201
 
 
@@ -595,8 +722,7 @@ def mock_pay(topup_id):
         return "Unknown top-up", 404
     if request.method == "POST" and t["status"] == "pending":
         if request.form.get("result") == "pay":
-            with tx() as cur:
-                W.credit_topup(cur, t["id"])
+            credit_and_notify(t["id"])
         else:
             query("UPDATE topups SET status='failed', completed_at=NOW() WHERE id=%s", (t["id"],))
         return redirect(f"/pay/return/{topup_id}")
@@ -625,16 +751,16 @@ def stripe_webhook():
         obj = event["data"]["object"]
         t = query("SELECT * FROM topups WHERE provider_ref=%s", (obj["id"],), one=True)
         if t and obj.get("payment_status") == "paid":
-            with tx() as cur:
-                W.credit_topup(cur, t["id"])
+            credit_and_notify(t["id"])
     return "ok"
 
 
-checkout.register(app, api_key_required)
+checkout.register(app, api_key_required, notify_entry)
 
 
 if __name__ == "__main__":
     from merchant_verification.models import Base as VerificationBase
     VerificationBase.metadata.create_all(VERIFICATION_ENGINE)
     checkout.ensure_tables()
+    migrations.run()
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=not config.PRODUCTION)
