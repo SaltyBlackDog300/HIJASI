@@ -14,9 +14,9 @@ from flask import Flask, jsonify, request, send_from_directory, session
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
-HIJASI_URL = os.getenv("HIJASI_URL", "http://localhost:5000").rstrip("/")
+HIJASI_URL = os.getenv("HIJASI_URL", "http://127.0.0.1:5000").rstrip("/").replace("://localhost", "://127.0.0.1")
 HIJASI_KEY = os.getenv("HIJASI_SECRET_KEY", "")
-FARM_URL = os.getenv("FARM_URL", "http://localhost:5001").rstrip("/")
+FARM_URL = os.getenv("FARM_URL", "http://127.0.0.1:5001").rstrip("/")
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 app.secret_key = os.getenv("FARM_SECRET_KEY", "farm-dev-secret")

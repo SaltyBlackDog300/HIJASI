@@ -1,5 +1,6 @@
-flask>=3.0
+flask>=3.1
 pymysql>=1.1
 cryptography>=42
 stripe>=10
 python-dotenv>=1.0
+SQLAlchemy>=2.0,<2.1

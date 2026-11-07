@@ -13,7 +13,7 @@ SECRET_KEY = os.getenv("FLASK_SECRET_KEY", "dev-change-me")
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "admin-dev-token")
 
 # Public base URL of this server (used for mock-payment redirect pages).
-PUBLIC_URL = os.getenv("PUBLIC_URL", "http://localhost:5000").rstrip("/")
+PUBLIC_URL = os.getenv("PUBLIC_URL", "http://127.0.0.1:5000").rstrip("/")
 
 # Stripe test mode. Leave empty to use the built-in mock gateway.
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY", "")

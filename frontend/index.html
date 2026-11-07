@@ -3,85 +3,99 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10231e">
   <title>HIJASI — Wallets for every business</title>
-  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/dashboard.css">
 </head>
-<body>
-  <div class="wrap">
-    <nav class="nav">
-      <a class="brand" href="/">HIJA<span>SI</span></a>
-      <div class="nav-links">
+<body class="site">
+  <header class="site-hero">
+    <nav class="site-nav">
+      <a class="brand" href="/"><span class="brand-mark">◈</span><span>hijasi<span class="brand-dot">.</span></span></a>
+      <div class="site-links">
+        <a href="#how">How it works</a>
         <a href="/docs">API docs</a>
-        <a href="/merchant">Merchant login</a>
-        <a class="btn primary small" href="/merchant#register">Get started</a>
+        <a href="/merchant">Sign in</a>
+        <a class="primary-button nav-cta" href="/merchant#register">Apply as merchant <span aria-hidden="true">→</span></a>
       </div>
     </nav>
-
-    <header class="hero">
-      <div>
-        <p class="eyebrow">Wallet-as-a-service API</p>
+    <div class="site-hero-body">
+      <div class="site-hero-copy">
+        <span class="eyebrow light">WALLET-AS-A-SERVICE API</span>
         <h1>Prepaid wallets for the businesses Stripe and PayPal left behind.</h1>
-        <p class="lead">Let your customers top up once and spend all month. A farm delivering weekly, a game studio
-          with in-game coins, a canteen with meal credit. Plug HIJASI into your site and keep using the local
-          payment gateway you already have.</p>
-        <div class="row" style="max-width:420px">
-          <a class="btn primary" href="/merchant#register">Apply as a merchant</a>
-          <a class="btn" href="/docs">Read the API</a>
+        <p>Let customers top up once and spend all month. A farm delivering weekly, a game studio with in-game coins, a canteen with meal credit. Plug HIJASI into your site and keep the local payment gateway you already use.</p>
+        <div class="hero-actions">
+          <a class="primary-button" href="/merchant#register">Apply as merchant <span aria-hidden="true">→</span></a>
+          <a class="secondary-button ghost-dark" href="http://127.0.0.1:5001" target="_blank" rel="noopener">See the demo shop <span aria-hidden="true">↗</span></a>
         </div>
       </div>
-      <pre class="hero-panel"><span class="c"># charge a customer's wallet</span>
+      <pre class="hero-code"><span class="c"># charge a customer's wallet</span>
 POST /v1/wallets/<span class="k">cust_42</span>/charges
 Authorization: Bearer sk_test_…
 Idempotency-Key: order-1007
 
-{ "amount": 24900,
-  "reference": "order-1007" }
+{ "amount": 24900, "reference": "order-1007" }
 
-<span class="c"># → 201</span>
-{ "id": "txn_9f2c…",
-  "type": "charge",
-  "amount": -24900,
+<span class="c"># 201 Created</span>
+{ "type": "charge", "amount": -24900,
   "balance": 75100 }</pre>
-    </header>
+    </div>
+    <div class="auth-orb orb-one"></div><div class="auth-orb orb-two"></div>
+  </header>
 
-    <section>
-      <p class="eyebrow">The gap</p>
-      <div class="grid cols-3">
-        <div class="card"><div class="stat">51</div><div class="stat-label">countries where Stripe is available — and only 44 with self sign-up. India and Indonesia are invite-only.</div></div>
-        <div class="card"><div class="stat">~144</div><div class="stat-label">of ~195 countries have no Stripe at all.</div></div>
-        <div class="card"><div class="stat">~39</div><div class="stat-label">countries with full PayPal business access. India, Pakistan, Bangladesh, Nigeria and many more are restricted.</div></div>
+  <main class="site-main">
+    <section class="site-section">
+      <div class="eyebrow">THE GAP</div>
+      <h2 class="site-h2">Most of the world can't use Stripe or PayPal to take payments.</h2>
+      <div class="stats-grid">
+        <article class="stat-card"><div class="stat-top"><span>Stripe countries</span><span class="stat-icon mint">◈</span></div><strong>51</strong><small>Only 44 with self sign-up. India and Indonesia are invite-only.</small></article>
+        <article class="stat-card"><div class="stat-top"><span>Countries without Stripe</span><span class="stat-icon peach">✕</span></div><strong>~144</strong><small>Of roughly 195 countries.</small></article>
+        <article class="stat-card"><div class="stat-top"><span>Full PayPal business access</span><span class="stat-icon lavender">↗</span></div><strong>~39</strong><small>India, Pakistan, Bangladesh, Nigeria and many more are restricted.</small></article>
+        <article class="stat-card"><div class="stat-top"><span>Proven model</span><span class="stat-icon sand">⇄</span></div><strong>Closed-loop</strong><small>BigBasket's wallet in India works this way.</small></article>
       </div>
     </section>
 
-    <section>
-      <p class="eyebrow">How it works</p>
-      <div class="grid cols-4">
-        <div class="card"><h3>1. Apply</h3><p class="muted">Businesses register. We review every merchant by hand — no crypto, no gambling, no money transfer.</p></div>
-        <div class="card"><h3>2. Integrate</h3><p class="muted">Approved merchants get a secret key and call our REST API from their server.</p></div>
-        <div class="card"><h3>3. Top up</h3><p class="muted">Customers pay through the merchant's own gateway. We credit the wallet only after the gateway confirms.</p></div>
-        <div class="card"><h3>4. Spend</h3><p class="muted">Orders are paid from the wallet balance, with a full audit ledger, refunds and limits.</p></div>
+    <section class="site-section" id="how">
+      <div class="eyebrow">HOW IT WORKS</div>
+      <h2 class="site-h2">From application to first wallet payment.</h2>
+      <div class="steps-grid">
+        <article class="panel info-panel"><span class="info-icon">1</span><h3>Apply</h3><p>Businesses declare who they are and what they sell. Every application is reviewed by hand. No crypto, gambling or money transfer.</p></article>
+        <article class="panel info-panel"><span class="info-icon">2</span><h3>Integrate</h3><p>Approved merchants get a secret key and call our REST API from their own server.</p></article>
+        <article class="panel info-panel"><span class="info-icon">3</span><h3>Top up</h3><p>Customers pay through the merchant's gateway. The wallet is credited only after the gateway confirms.</p></article>
+        <article class="panel info-panel"><span class="info-icon">4</span><h3>Spend</h3><p>Orders are paid from the balance, with an append-only ledger, refunds, limits and idempotency.</p></article>
       </div>
     </section>
 
-    <section>
-      <div class="grid cols-2">
-        <div class="card">
-          <p class="eyebrow">Closed-loop by design</p>
-          <h2>Each wallet only works at the business that issued it.</h2>
-          <p class="muted">No cash-out, no transfers between merchants. This mirrors the "closed system" prepaid
-            instruments that India's RBI does not require authorisation for — the same model BigBasket's wallet uses.
-            We provide the software and ledger; the merchant keeps the money in their own account.</p>
-        </div>
-        <div class="card">
-          <p class="eyebrow">Built for acquisition</p>
-          <h2>A drop-in wallet layer for any gateway.</h2>
-          <p class="muted">Payment providers in emerging markets can white-label HIJASI to offer wallets on top of
-            the card and UPI rails they already run — instantly unlocking stored-value use cases for their merchants.</p>
-        </div>
+    <section class="site-section">
+      <div class="overview-grid">
+        <article class="panel currency-panel">
+          <div class="currency-art"><div class="currency-ring ring-a"></div><div class="currency-ring ring-b"></div><span>◈</span></div>
+          <span class="eyebrow light">CLOSED-LOOP BY DESIGN</span>
+          <h2>Each wallet only works where it was issued.</h2>
+          <p>No cash-out and no transfers between merchants. This matches the closed-system prepaid instruments that India's RBI does not require authorisation for. We run the software and ledger; the merchant keeps the money.</p>
+        </article>
+        <article class="panel info-panel">
+          <span class="info-icon">⌁</span>
+          <h3>Built for acquisition</h3>
+          <p>Payment providers in emerging markets can white-label HIJASI to offer stored-value wallets on top of the card and UPI rails they already run, opening new use cases for every merchant they serve.</p>
+        </article>
       </div>
     </section>
 
-    <footer>HIJASI · Built by Siam, Hieu and Jason at the Oslo sprint hackathon 2026.</footer>
-  </div>
+    <section class="site-section" id="demo">
+      <div class="eyebrow">TRY THE DEMO</div>
+      <h2 class="site-h2">Everything runs locally.</h2>
+      <div class="demo-grid">
+        <a class="panel demo-link" href="http://127.0.0.1:5001" target="_blank" rel="noopener"><span class="stat-icon mint">🌾</span><h3>Demo farm shop</h3><p>The customer side: top up a wallet, buy produce, see the history.</p><span class="text-button">Open shop →</span></a>
+        <a class="panel demo-link" href="/merchant"><span class="stat-icon peach">▦</span><h3>Merchant dashboard</h3><p>Sign in as <code>farm@demo.hijasi</code> / <code>farmdemo123</code>, or apply as a new business.</p><span class="text-button">Sign in →</span></a>
+        <a class="panel demo-link" href="/admin"><span class="stat-icon lavender">✓</span><h3>Admin review</h3><p>Review applications, record checks and evidence, approve or suspend.</p><span class="text-button">Open admin →</span></a>
+        <a class="panel demo-link" href="/docs"><span class="stat-icon sand">⌘</span><h3>API docs</h3><p>Wallets, top-ups, charges, refunds and error codes.</p><span class="text-button">Read docs →</span></a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <a class="brand" href="/"><span class="brand-mark">◈</span><span>hijasi<span class="brand-dot">.</span></span></a>
+    <span>Built by Siam, Hieu and Jason · Oslo sprint hackathon 2026 · Test environment, no real money moves.</span>
+  </footer>
 </body>
 </html>

@@ -3,9 +3,10 @@ import os
 import re
 import secrets
 from functools import wraps
-from urllib.parse import urlencode, urlparse
+from urllib.parse import quote_plus, urlencode, urlparse
 
 from flask import Flask, g, jsonify, redirect, render_template_string, request, send_from_directory, session
+from sqlalchemy import create_engine
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import config
@@ -13,6 +14,7 @@ import payments
 import wallet as W
 from db import query, tx
 from errors import ApiError
+from merchant_verification import Principal, init_verification
 
 FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
 
@@ -20,6 +22,62 @@ app = Flask(__name__, static_folder=FRONTEND_DIR, static_url_path="/static")
 app.secret_key = config.SECRET_KEY
 app.config.update(SESSION_COOKIE_NAME="hijasi_session", SESSION_COOKIE_HTTPONLY=True,
                   SESSION_COOKIE_SAMESITE="Lax")
+
+# ---------------------------------------------------------------- merchant verification module
+# Teammate's review module (declarations, human review, audit trail), mounted at /verification.
+# Its approval decision drives merchants.status, which gates API keys and the wallet API.
+
+VERIFICATION_ENGINE = create_engine(
+    f"mysql+pymysql://{quote_plus(config.DB_USER)}:{quote_plus(config.DB_PASSWORD)}"
+    f"@{config.DB_HOST}:{config.DB_PORT}/{config.DB_NAME}?charset=utf8mb4",
+    pool_pre_ping=True,
+)
+
+
+def resolve_principal():
+    """Identity comes only from our server-side session, never from request data."""
+    admin_path = request.path.startswith("/verification/admin")
+    mid = session.get("merchant_id")
+    if session.get("is_admin") and (admin_path or not mid):
+        return Principal("platform-admin", "platform_admin", frozenset())
+    if mid and not admin_path:
+        m = query("SELECT id FROM merchants WHERE id=%s", (mid,), one=True)
+        if m:
+            return Principal(f"merchant-{m['id']}", "merchant_admin", frozenset({str(m["id"])}))
+    return None
+
+
+def verification_mutation_guard():
+    sent, expected = request.headers.get("X-CSRF-Token", ""), session.get("csrf_token", "")
+    return bool(sent and expected and secrets.compare_digest(sent, expected))
+
+
+# Tables are created by seed.py and on server start (not at import, so seed.py can create the DB first).
+init_verification(app, engine=VERIFICATION_ENGINE, resolve_principal=resolve_principal,
+                  mutation_guard=verification_mutation_guard, create_tables=False)
+
+STATUS_FROM_REVIEW = {"approved": "approved", "suspended": "suspended", "rejected": "rejected"}
+
+
+def sync_merchant_status(merchant_id, review_status, reason):
+    if not str(merchant_id or "").isdigit():
+        return
+    status = STATUS_FROM_REVIEW.get(review_status, "pending")
+    with tx() as cur:
+        cur.execute("UPDATE merchants SET status=%s, review_note=%s, reviewed_at=NOW() WHERE id=%s",
+                    (status, (reason or "")[:255] or None, int(merchant_id)))
+        if status != "approved":
+            cur.execute("UPDATE api_keys SET revoked=1 WHERE merchant_id=%s", (int(merchant_id),))
+
+
+@app.after_request
+def apply_review_decision(response):
+    if (request.method == "POST" and response.status_code == 200
+            and re.fullmatch(r"/verification/admin/applications/[^/]+/review", request.path)):
+        data = response.get_json(silent=True) or {}
+        sync_merchant_status(data.get("merchant_id"), data.get("status"), data.get("review_reason"))
+    return response
+
 
 BUSINESS_TYPES = {"farm", "grocery", "restaurant", "game_studio", "retail", "education", "services", "other"}
 RISK_WORDS = ["crypto", "bitcoin", "token sale", "nft", "forex", "casino", "gambling", "betting",
@@ -31,6 +89,25 @@ RISK_WORDS = ["crypto", "bitcoin", "token sale", "nft", "forex", "casino", "gamb
 @app.errorhandler(ApiError)
 def handle_api_error(e):
     return jsonify(e.to_dict()), e.status
+
+
+# Dashboard requests that change data must echo the session's CSRF token.
+CSRF_EXEMPT = {"/api/auth/login", "/api/auth/register", "/api/admin/login"}
+
+
+def csrf_token():
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_urlsafe(32)
+    return session["csrf_token"]
+
+
+@app.before_request
+def check_csrf():
+    if (request.path.startswith("/api/") and request.method not in ("GET", "HEAD", "OPTIONS")
+            and request.path not in CSRF_EXEMPT):
+        sent = request.headers.get("X-CSRF-Token", "")
+        if not sent or not secrets.compare_digest(sent, session.get("csrf_token", "")):
+            raise ApiError(403, "csrf_failed", "Your session expired. Please reload the page.")
 
 
 def body():
@@ -182,7 +259,7 @@ def register():
         )
         mid = cur.lastrowid
     session["merchant_id"] = mid
-    return jsonify({"ok": True}), 201
+    return jsonify({"ok": True, "csrf_token": csrf_token()}), 201
 
 
 @app.post("/api/auth/login")
@@ -193,7 +270,7 @@ def login():
     if not m or not check_password_hash(m["password_hash"], d.get("password") or ""):
         raise ApiError(401, "bad_credentials", "Wrong email or password")
     session["merchant_id"] = m["id"]
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "csrf_token": csrf_token()})
 
 
 @app.post("/api/auth/logout")
@@ -215,6 +292,7 @@ def me():
                       "last_used_at": k["last_used_at"].isoformat() if k["last_used_at"] else None}
                      for k in keys],
         "gateway": payments.provider_name(),
+        "csrf_token": csrf_token(),
     })
 
 
@@ -232,10 +310,19 @@ def roll_key():
     return jsonify({"secret_key": raw, "note": "Copy this now. It will not be shown again."}), 201
 
 
-@app.put("/api/policy")
+@app.get("/api/settings")
 @login_required
-def update_policy():
+def get_settings():
+    return jsonify({"settings": merchant_public(g.merchant)})
+
+
+@app.put("/api/settings")
+@login_required
+def update_settings():
     d = body()
+    name = (d.get("business_name") or "").strip()
+    if not name or len(name) > 150:
+        raise ApiError(400, "invalid_name", "Business name is required (max 150 characters)")
     vals = {}
     for f in ("min_topup", "max_topup", "max_balance"):
         v = d.get(f)
@@ -243,41 +330,74 @@ def update_policy():
             raise ApiError(400, "invalid_policy", f"{f} must be a positive integer (minor units)")
         vals[f] = v
     if not vals["min_topup"] <= vals["max_topup"] <= vals["max_balance"]:
-        raise ApiError(400, "invalid_policy", "Need min_topup <= max_topup <= max_balance")
-    query("UPDATE merchants SET min_topup=%s, max_topup=%s, max_balance=%s WHERE id=%s",
-          (vals["min_topup"], vals["max_topup"], vals["max_balance"], g.merchant["id"]))
-    return jsonify({"ok": True, "policy": vals})
+        raise ApiError(400, "invalid_policy", "Need min top-up <= max top-up <= max balance")
+    query("UPDATE merchants SET business_name=%s, min_topup=%s, max_topup=%s, max_balance=%s "
+          "WHERE id=%s",
+          (name, vals["min_topup"], vals["max_topup"], vals["max_balance"], g.merchant["id"]))
+    m = query("SELECT * FROM merchants WHERE id=%s", (g.merchant["id"],), one=True)
+    return jsonify({"settings": merchant_public(m)})
 
 
-@app.get("/api/stats")
+@app.get("/api/overview")
 @login_required
-def merchant_stats():
+def merchant_overview():
     mid = g.merchant["id"]
-    w = query("SELECT COUNT(*) AS wallets, COALESCE(SUM(balance),0) AS float_total "
-              "FROM wallets WHERE merchant_id=%s", (mid,), one=True)
+    w = query("""SELECT COUNT(*) AS wallets, COALESCE(SUM(balance),0) AS float_total,
+                 COALESCE(SUM(status='active'),0) AS active FROM wallets WHERE merchant_id=%s""",
+              (mid,), one=True)
     sums = query("SELECT type, COUNT(*) AS n, COALESCE(SUM(amount),0) AS total "
                  "FROM ledger_entries WHERE merchant_id=%s GROUP BY type", (mid,))
     by = {s["type"]: {"count": s["n"], "total": int(s["total"])} for s in sums}
-    return jsonify({"wallets": w["wallets"], "float_total": int(w["float_total"]), "by_type": by,
-                    "currency": g.merchant["currency"]})
+    activity = query("""SELECT DATE(created_at) AS day, COUNT(*) AS n FROM ledger_entries
+                        WHERE merchant_id=%s AND created_at >= CURDATE() - INTERVAL 6 DAY
+                        GROUP BY DATE(created_at)""", (mid,))
+    return jsonify({
+        "currency": g.merchant["currency"],
+        "float_total": int(w["float_total"]),
+        "wallets": w["wallets"],
+        "active_wallets": int(w["active"]),
+        "topped_up": by.get("topup", {}).get("total", 0),
+        "spent": -by.get("charge", {}).get("total", 0) - by.get("refund", {}).get("total", 0),
+        "transaction_count": sum(v["count"] for v in by.values()),
+        "activity": [{"day": a["day"].isoformat(), "count": a["n"]} for a in activity],
+    })
 
 
 @app.get("/api/wallets")
 @login_required
 def merchant_wallets():
-    rows = query("SELECT * FROM wallets WHERE merchant_id=%s ORDER BY id DESC LIMIT 200",
-                 (g.merchant["id"],))
-    return jsonify({"wallets": [W.wallet_out(r, g.merchant["currency"]) for r in rows]})
+    q = (request.args.get("q") or "").strip()[:100]
+    sql = """SELECT w.*, MAX(e.created_at) AS last_activity FROM wallets w
+             LEFT JOIN ledger_entries e ON e.wallet_id = w.id
+             WHERE w.merchant_id=%s"""
+    params = [g.merchant["id"]]
+    if q:
+        like = "%" + q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+        sql += " AND (w.customer_ref LIKE %s OR w.display_name LIKE %s)"
+        params += [like, like]
+    sql += " GROUP BY w.id ORDER BY w.id DESC LIMIT 200"
+    rows = query(sql, params)
+    return jsonify({"wallets": [
+        {**W.wallet_out(r, g.merchant["currency"]),
+         "last_activity": r["last_activity"].isoformat() if r["last_activity"] else None}
+        for r in rows]})
 
 
 @app.get("/api/transactions")
 @login_required
 def merchant_transactions():
-    rows = query(
-        """SELECT e.*, w.customer_ref FROM ledger_entries e JOIN wallets w ON w.id=e.wallet_id
-           WHERE e.merchant_id=%s ORDER BY e.id DESC LIMIT 100""", (g.merchant["id"],))
-    return jsonify({"transactions": [{**W.entry_out(r), "customer_id": r["customer_ref"]}
-                                     for r in rows]})
+    t = request.args.get("type", "all")
+    sql = """SELECT e.*, w.customer_ref, w.display_name FROM ledger_entries e
+             JOIN wallets w ON w.id=e.wallet_id WHERE e.merchant_id=%s"""
+    params = [g.merchant["id"]]
+    if t in ("topup", "charge", "refund", "adjustment"):
+        sql += " AND e.type=%s"
+        params.append(t)
+    sql += " ORDER BY e.id DESC LIMIT 200"
+    rows = query(sql, params)
+    return jsonify({"transactions": [
+        {**W.entry_out(r), "customer_id": r["customer_ref"], "customer_name": r["display_name"]}
+        for r in rows]})
 
 
 # ---------------------------------------------------------------- admin API
@@ -288,7 +408,7 @@ def admin_login():
     if not secrets.compare_digest(str(d.get("token") or ""), config.ADMIN_TOKEN):
         raise ApiError(401, "bad_token", "Wrong admin token")
     session["is_admin"] = True
-    return jsonify({"ok": True})
+    return jsonify({"ok": True, "csrf_token": csrf_token()})
 
 
 @app.get("/api/admin/merchants")
@@ -296,25 +416,8 @@ def admin_login():
 def admin_merchants():
     rows = query("SELECT * FROM merchants ORDER BY FIELD(status,'pending','approved','suspended',"
                  "'rejected'), created_at DESC")
-    return jsonify({"merchants": [{**merchant_public(r), "risk_flags": risk_flags(r)} for r in rows]})
-
-
-@app.post("/api/admin/merchants/<int:mid>/review")
-@admin_required
-def admin_review(mid):
-    d = body()
-    status = {"approve": "approved", "reject": "rejected", "suspend": "suspended"}.get(d.get("decision"))
-    if not status:
-        raise ApiError(400, "invalid_decision", "decision must be approve, reject or suspend")
-    note = (d.get("note") or "").strip()[:255] or None
-    with tx() as cur:
-        cur.execute("UPDATE merchants SET status=%s, review_note=%s, reviewed_at=NOW() WHERE id=%s",
-                    (status, note, mid))
-        if cur.rowcount == 0:
-            raise ApiError(404, "not_found", "Merchant not found")
-        if status != "approved":
-            cur.execute("UPDATE api_keys SET revoked=1 WHERE merchant_id=%s", (mid,))
-    return jsonify({"ok": True, "status": status})
+    return jsonify({"merchants": [{**merchant_public(r), "risk_flags": risk_flags(r)} for r in rows],
+                    "csrf_token": csrf_token()})
 
 
 @app.get("/api/admin/stats")
@@ -323,8 +426,10 @@ def admin_stats():
     m = query("SELECT status, COUNT(*) AS n FROM merchants GROUP BY status")
     f = query("SELECT COALESCE(SUM(balance),0) AS s, COUNT(*) AS n FROM wallets", one=True)
     v = query("SELECT COALESCE(SUM(amount),0) AS s FROM ledger_entries WHERE type='topup'", one=True)
+    a = query("SELECT status, COUNT(*) AS n FROM merchant_verification_applications GROUP BY status")
     return jsonify({"merchants": {r["status"]: r["n"] for r in m}, "wallets": f["n"],
-                    "float_total": int(f["s"]), "topup_volume": int(v["s"])})
+                    "float_total": int(f["s"]), "topup_volume": int(v["s"]),
+                    "applications": {r["status"]: r["n"] for r in a}})
 
 
 # ---------------------------------------------------------------- public wallet API (v1)
@@ -505,4 +610,6 @@ def stripe_webhook():
 
 
 if __name__ == "__main__":
+    from merchant_verification.models import Base as VerificationBase
+    VerificationBase.metadata.create_all(VERIFICATION_ENGINE)
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", "5000")), debug=True)

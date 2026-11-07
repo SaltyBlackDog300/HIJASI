@@ -3,47 +3,55 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>API Docs — HIJASI</title>
-  <link rel="stylesheet" href="/static/css/style.css">
+  <meta name="theme-color" content="#10231e">
+  <title>HIJASI — API docs</title>
+  <link rel="stylesheet" href="/static/css/dashboard.css">
 </head>
-<body>
-  <div class="wrap" style="max-width:860px">
-    <nav class="nav">
-      <a class="brand" href="/">HIJA<span>SI</span></a>
-      <div class="nav-links"><a href="/merchant">Dashboard</a></div>
+<body class="site">
+  <header class="site-hero compact">
+    <nav class="site-nav">
+      <a class="brand" href="/"><span class="brand-mark">◈</span><span>hijasi<span class="brand-dot">.</span></span></a>
+      <div class="site-links">
+        <a href="/">Home</a>
+        <a href="/merchant">Sign in</a>
+        <a class="primary-button nav-cta" href="/merchant#register">Apply as merchant <span aria-hidden="true">→</span></a>
+      </div>
     </nav>
+    <div class="site-hero-copy docs-hero">
+      <span class="eyebrow light">DEVELOPERS</span>
+      <h1>Wallet API v1</h1>
+      <p>All amounts are integers in minor units (100 = 1.00). Call the API from your <b>server</b> with <code>Authorization: Bearer sk_test_…</code>. Wallets are closed-loop: a balance can only be spent at the merchant that issued it, and there is no withdrawal endpoint.</p>
+    </div>
+    <div class="auth-orb orb-one"></div>
+  </header>
 
-    <h1 style="font-size:2.2rem">Wallet API v1</h1>
-    <p class="muted">All amounts are integers in minor units (100 = 1.00). Authenticate every request from your
-      <b>server</b> with <code>Authorization: Bearer sk_test_…</code>. Wallets are closed-loop: a balance can only be
-      spent at the merchant that issued it, and there is no withdrawal endpoint.</p>
-
-    <section>
+  <main class="site-main docs">
+    <section class="panel doc-block">
       <h2>Create or fetch a wallet</h2>
+      <p>Call this when a customer first uses your shop. It is safe to call again.</p>
       <pre class="code">POST /v1/wallets
 { "customer_id": "cust_42", "display_name": "Ravi Kumar" }
 
-→ { "customer_id": "cust_42", "balance": 0, "currency": "inr", "status": "active" }</pre>
-      <pre class="code">GET /v1/wallets/{customer_id}</pre>
+→ 200 { "customer_id": "cust_42", "balance": 0, "currency": "inr", "status": "active" }
+
+GET /v1/wallets/{customer_id}</pre>
     </section>
 
-    <section>
+    <section class="panel doc-block">
       <h2>Top up</h2>
-      <p class="muted">Creates a pending top-up and returns a checkout URL. Redirect your customer there. After paying
-        they are sent to <code>return_url?topup=top_…&amp;status=succeeded</code>. The wallet is credited only once the
-        gateway confirms payment. Limits come from your wallet policy.</p>
+      <p>Creates a pending top-up and returns a checkout URL. Redirect the customer there. Afterwards they are sent to <code>return_url?topup=top_…&amp;status=succeeded</code>. The wallet is credited only after the gateway confirms payment, within your wallet policy limits.</p>
       <pre class="code">POST /v1/wallets/{customer_id}/topups
 { "amount": 100000, "return_url": "https://yourshop.com/wallet" }
 
-→ 201 { "id": "top_…", "status": "pending", "checkout_url": "https://…" }</pre>
-      <pre class="code">GET /v1/topups/{topup_id}
-→ { "id": "top_…", "status": "succeeded", "amount": 100000 }</pre>
+→ 201 { "id": "top_…", "status": "pending", "checkout_url": "https://…" }
+
+GET /v1/topups/{topup_id}
+→ 200 { "id": "top_…", "status": "succeeded", "amount": 100000 }</pre>
     </section>
 
-    <section>
-      <h2>Charge (pay for an order)</h2>
-      <p class="muted">Send an <code>Idempotency-Key</code> header so a retried request never charges twice.
-        Returns <code>402 insufficient_funds</code> if the balance is too low.</p>
+    <section class="panel doc-block">
+      <h2>Charge for an order</h2>
+      <p>Send an <code>Idempotency-Key</code> header so a retried request never charges twice. Returns <code>402 insufficient_funds</code> if the balance is too low.</p>
       <pre class="code">POST /v1/wallets/{customer_id}/charges
 Idempotency-Key: order-1007
 { "amount": 24900, "reference": "order-1007", "description": "Weekly veg box" }
@@ -51,26 +59,28 @@ Idempotency-Key: order-1007
 → 201 { "id": "txn_…", "type": "charge", "amount": -24900, "balance": 75100 }</pre>
     </section>
 
-    <section>
+    <section class="panel doc-block">
       <h2>Refund</h2>
-      <p class="muted">Refunds go back into the wallet, never to cash. Omit <code>amount</code> for a full refund.</p>
+      <p>Refunds go back into the wallet, never to cash. Leave out <code>amount</code> for a full refund. A refund can never exceed the original charge.</p>
       <pre class="code">POST /v1/refunds
 { "charge_id": "txn_…", "amount": 5000, "reason": "Missing tomatoes" }</pre>
     </section>
 
-    <section>
+    <section class="panel doc-block">
       <h2>Transactions</h2>
       <pre class="code">GET /v1/wallets/{customer_id}/transactions?limit=50</pre>
     </section>
 
-    <section>
+    <section class="panel doc-block">
       <h2>Errors</h2>
       <pre class="code">{ "error": { "code": "insufficient_funds", "message": "Wallet balance is too low", "balance": 1200 } }</pre>
-      <p class="muted">Codes include <code>invalid_api_key</code>, <code>merchant_not_approved</code>,
-        <code>wallet_not_found</code>, <code>insufficient_funds</code>, <code>below_min_topup</code>,
-        <code>above_max_topup</code>, <code>max_balance_exceeded</code>, <code>refund_exceeds_charge</code>,
-        <code>idempotency_conflict</code>.</p>
+      <p>Codes include <code>invalid_api_key</code>, <code>merchant_not_approved</code>, <code>wallet_not_found</code>, <code>insufficient_funds</code>, <code>below_min_topup</code>, <code>above_max_topup</code>, <code>max_balance_exceeded</code>, <code>refund_exceeds_charge</code> and <code>idempotency_conflict</code>.</p>
     </section>
-  </div>
+  </main>
+
+  <footer class="site-footer">
+    <a class="brand" href="/"><span class="brand-mark">◈</span><span>hijasi<span class="brand-dot">.</span></span></a>
+    <span>Test environment. No real money moves.</span>
+  </footer>
 </body>
 </html>

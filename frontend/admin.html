@@ -3,45 +3,79 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Admin — HIJASI</title>
-  <link rel="stylesheet" href="/static/css/style.css">
+  <meta name="theme-color" content="#10231e">
+  <title>HIJASI — Admin</title>
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+  <script defer src="/static/js/admin.js"></script>
 </head>
 <body>
-  <div class="wrap">
-    <nav class="nav">
-      <a class="brand" href="/">HIJA<span>SI</span> <span class="muted" style="font-weight:500">admin</span></a>
-    </nav>
-
-    <div id="loginView" class="hidden" style="display:grid;place-items:center;padding:30px 0">
-      <form id="loginForm" class="card narrow">
-        <h2>Admin login</h2>
-        <div id="loginAlert" class="hidden"></div>
-        <label>Admin token</label><input name="token" type="password" required>
-        <button class="btn primary wide">Log in</button>
+  <div id="login-screen" class="auth-screen" hidden>
+    <div class="auth-intro">
+      <a class="brand brand-large" href="/"><span class="brand-mark">◈</span><span>hijasi<span class="brand-dot">.</span></span></a>
+      <div class="auth-copy">
+        <span class="eyebrow light">PLATFORM ADMIN</span>
+        <h1>Only real businesses get in.</h1>
+        <p>Review merchant applications, check their websites, and approve, reject or suspend access.</p>
+      </div>
+      <div class="auth-foot">Admin access only.</div>
+      <div class="auth-orb orb-one"></div><div class="auth-orb orb-two"></div>
+    </div>
+    <main class="auth-form-panel">
+      <form id="login-form" class="auth-card">
+        <span class="eyebrow">HIJASI ADMIN</span>
+        <h2>Sign in to review merchants</h2>
+        <p>Use the admin token from the server's settings.</p>
+        <label for="token">Admin token</label>
+        <input id="token" type="password" required autocomplete="off">
+        <p id="login-error" class="form-error" role="alert" hidden></p>
+        <button class="primary-button full" type="submit">Sign in <span aria-hidden="true">→</span></button>
       </form>
-    </div>
-
-    <div id="mainView" class="hidden">
-      <p class="eyebrow">Platform overview</p>
-      <div class="grid cols-4" style="margin-bottom:20px">
-        <div class="card"><div class="stat" id="sPending">—</div><div class="stat-label">Waiting for review</div></div>
-        <div class="card"><div class="stat" id="sApproved">—</div><div class="stat-label">Approved merchants</div></div>
-        <div class="card"><div class="stat" id="sWallets">—</div><div class="stat-label">Wallets</div></div>
-        <div class="card"><div class="stat" id="sVolume">—</div><div class="stat-label">Top-up volume (minor units, all currencies)</div></div>
-      </div>
-
-      <div class="card">
-        <h2>Merchant applications</h2>
-        <p class="muted">Approve only real, verifiable businesses. Red flags are keyword hits in the application.</p>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Business</th><th>Type</th><th>Country</th><th>Website</th><th>Status</th><th>Flags</th><th></th></tr></thead>
-          <tbody id="rows"></tbody>
-        </table></div>
-      </div>
-    </div>
+    </main>
   </div>
 
-  <script src="/static/js/common.js"></script>
-  <script src="/static/js/admin.js"></script>
+  <div id="app-shell" class="app-shell" hidden>
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-head">
+        <a class="brand" href="/"><span class="brand-mark">◈</span><span>hijasi<span class="brand-dot">.</span></span></a>
+        <button id="sidebar-close" class="icon-button mobile-only" type="button" aria-label="Close menu">×</button>
+      </div>
+      <div class="workspace-switch"><span class="workspace-avatar">A</span><span class="workspace-text"><strong>Platform admin</strong><small>Merchant review</small></span></div>
+      <div class="nav-caption">ADMIN</div>
+      <nav class="nav"><button type="button" class="nav-link active"><span class="nav-icon">✓</span> Merchant applications</button></nav>
+      <div class="sidebar-bottom"><div class="demo-card"><span class="demo-card-icon">✳</span><strong>No crypto, no gambling</strong><p>Red flags are keyword hits in an application. Always check the website too.</p></div></div>
+    </aside>
+    <div class="main-wrap">
+      <header class="topbar">
+        <div class="topbar-left"><button id="menu-button" class="icon-button mobile-only" type="button" aria-label="Open menu">☰</button><span>Admin <span class="crumb-separator">/</span> Merchant applications</span></div>
+        <div class="topbar-right"><span class="environment-pill"><span class="status-dot"></span> Test environment</span></div>
+      </header>
+      <main class="content">
+        <div id="banner" class="banner" hidden></div>
+        <div class="page-heading"><div><div class="eyebrow">PLATFORM OVERVIEW</div><h1>Merchant review</h1><p>Compare each declaration with the business register, the catalogue and the sandbox policy. Record what you checked before deciding.</p></div></div>
+        <div class="stats-grid">
+          <article class="stat-card"><div class="stat-top"><span>Waiting for review</span><span class="stat-icon peach">⧗</span></div><strong id="s-pending">—</strong><small>Submitted or under review</small></article>
+          <article class="stat-card"><div class="stat-top"><span>Approved merchants</span><span class="stat-icon mint">✓</span></div><strong id="s-approved">—</strong><small>With API access</small></article>
+          <article class="stat-card"><div class="stat-top"><span>Customer wallets</span><span class="stat-icon lavender">♙</span></div><strong id="s-wallets">—</strong><small>Across all merchants</small></article>
+          <article class="stat-card"><div class="stat-top"><span>Top-up volume</span><span class="stat-icon sand">↗</span></div><strong id="s-volume">—</strong><small>Minor units, all currencies</small></article>
+        </div>
+
+        <div class="panel data-panel">
+          <div class="data-toolbar"><div><h2>Review queue</h2><p id="queue-count">—</p></div>
+            <select id="queue-status" aria-label="Queue">
+              <option value="submitted">Submitted</option><option value="under_review">Under review</option>
+              <option value="needs_information">Needs information</option><option value="approved">Approved</option>
+              <option value="rejected">Rejected</option><option value="suspended">Suspended</option><option value="draft">Drafts</option>
+            </select></div>
+          <div id="queue" class="review-queue"></div>
+        </div>
+
+        <div class="section-heading"><div><h2>All merchants</h2><p>Accounts and their current API access.</p></div></div>
+        <div class="panel table-panel"><div class="table-scroll"><table>
+          <thead><tr><th>BUSINESS</th><th>TYPE</th><th>COUNTRY</th><th>WEBSITE</th><th>ACCESS</th><th>FLAGS</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table></div></div>
+      </main>
+    </div>
+  </div>
 </body>
 </html>

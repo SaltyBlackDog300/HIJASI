@@ -3,126 +3,240 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Merchant Dashboard — HIJASI</title>
-  <link rel="stylesheet" href="/static/css/style.css">
+  <meta name="theme-color" content="#10231e">
+  <title>HIJASI — Merchant dashboard</title>
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+  <script defer src="/static/js/merchant.js"></script>
 </head>
 <body>
-  <div class="wrap">
-    <nav class="nav">
-      <a class="brand" href="/">HIJA<span>SI</span></a>
-      <div class="nav-links">
-        <a href="/docs">API docs</a>
-        <button id="logoutBtn" class="btn small hidden">Log out</button>
+  <!-- Sign in / apply -->
+  <div id="auth-screen" class="auth-screen" hidden>
+    <div class="auth-intro">
+      <a class="brand brand-large" href="/"><span class="brand-mark">◈</span><span>hijasi<span class="brand-dot">.</span></span></a>
+      <div class="auth-copy">
+        <span class="eyebrow light">WALLETS FOR EVERY BUSINESS</span>
+        <h1>Every wallet.<br>One clear view.</h1>
+        <p>Let customers top up once and spend all month. See every balance, follow every transaction, and connect your shop with one API key.</p>
       </div>
-    </nav>
-
-    <!-- Login / register -->
-    <div id="authView" class="hidden" style="display:grid;place-items:center;padding:30px 0">
-      <div class="card narrow">
-        <div class="tabs">
-          <button data-tab="login" class="on">Log in</button>
-          <button data-tab="register">Apply as merchant</button>
-        </div>
-        <div id="authAlert" class="hidden"></div>
-
-        <form id="loginForm">
-          <label>Email</label><input name="email" type="email" required autocomplete="email">
-          <label>Password</label><input name="password" type="password" required autocomplete="current-password">
-          <button class="btn primary wide">Log in</button>
-        </form>
-
-        <form id="registerForm" class="hidden">
-          <label>Business name</label><input name="business_name" required>
-          <label>Website</label><input name="website" type="url" placeholder="https://myfarm.in" required>
-          <div class="row">
-            <div><label>Country</label><input name="country" maxlength="2" placeholder="IN" required></div>
-            <div><label>Currency</label><input name="currency" maxlength="3" placeholder="inr" required></div>
-          </div>
-          <label>Business type</label>
-          <select name="business_type" required>
-            <option value="farm">Farm</option>
-            <option value="grocery">Grocery</option>
-            <option value="restaurant">Restaurant / canteen</option>
-            <option value="game_studio">Game studio</option>
-            <option value="retail">Retail</option>
-            <option value="education">Education</option>
-            <option value="services">Services</option>
-            <option value="other">Other</option>
-          </select>
-          <label>What do you sell, and what will the wallet be used for?</label>
-          <textarea name="description" rows="3" required></textarea>
-          <label>Email</label><input name="email" type="email" required autocomplete="email">
-          <label>Password</label><input name="password" type="password" minlength="8" required autocomplete="new-password">
-          <button class="btn primary wide">Submit application</button>
-          <p class="muted" style="font-size:.85rem;margin-top:10px">Every application is reviewed by hand. Crypto, gambling and money-transfer businesses are not accepted.</p>
-        </form>
-      </div>
+      <div class="auth-foot">Test environment. Payments run in Stripe test mode or the mock gateway.</div>
+      <div class="auth-orb orb-one"></div><div class="auth-orb orb-two"></div>
     </div>
-
-    <!-- Waiting for review -->
-    <div id="pendingView" class="hidden" style="display:grid;place-items:center;padding:30px 0">
-      <div class="card narrow">
-        <p class="eyebrow">Application status</p>
-        <h2 id="pendingTitle">Under review</h2>
-        <p id="pendingText" class="muted">We're checking your business. You'll get API access once approved.</p>
-        <button class="btn wide" onclick="load()">Refresh status</button>
-      </div>
-    </div>
-
-    <!-- Dashboard -->
-    <div id="dashView" class="hidden">
-      <p class="eyebrow">Merchant dashboard</p>
-      <h1 id="merchantName" style="font-size:2rem"></h1>
-      <p class="muted"><span id="merchantMeta"></span> · gateway: <b id="gatewayName"></b></p>
-
-      <div class="grid cols-4" style="margin:20px 0">
-        <div class="card"><div class="stat" id="statFloat">—</div><div class="stat-label">Total held in wallets</div></div>
-        <div class="card"><div class="stat" id="statWallets">—</div><div class="stat-label">Customer wallets</div></div>
-        <div class="card"><div class="stat" id="statTopups">—</div><div class="stat-label">Topped up</div></div>
-        <div class="card"><div class="stat" id="statSpent">—</div><div class="stat-label">Spent on orders</div></div>
-      </div>
-
-      <div class="grid cols-2">
-        <div class="card">
-          <h2>API key</h2>
-          <p class="muted">Use this secret key from your server only. Never put it in browser code.</p>
-          <div id="keyInfo" class="muted"></div>
-          <div id="newKey" class="hidden" style="margin:10px 0"></div>
-          <button id="rollKey" class="btn primary">Generate new key</button>
+    <main class="auth-form-panel">
+      <div class="auth-card">
+        <span class="eyebrow">WELCOME TO HIJASI</span>
+        <h2 id="auth-title">Sign in to your workspace</h2>
+        <p id="auth-subtitle">Your customers and wallet activity are waiting.</p>
+        <div class="auth-tabs" role="tablist" aria-label="Account access">
+          <button id="login-tab" class="active" type="button">Sign in</button>
+          <button id="signup-tab" type="button">Apply as merchant</button>
         </div>
-        <div class="card">
-          <h2>Wallet policy</h2>
-          <div id="policyAlert" class="hidden"></div>
-          <form id="policyForm">
-            <div class="row">
-              <div><label>Min top-up</label><input name="min_topup" type="number" step="0.01" min="0.01" required></div>
-              <div><label>Max top-up</label><input name="max_topup" type="number" step="0.01" min="0.01" required></div>
-              <div><label>Max balance</label><input name="max_balance" type="number" step="0.01" min="0.01" required></div>
+        <form id="auth-form" data-mode="login">
+          <div id="signup-fields" hidden>
+            <label for="business-name">Business name</label>
+            <input id="business-name" autocomplete="organization" placeholder="Green Valley Farm" maxlength="150">
+            <label for="website">Website</label>
+            <input id="website" type="url" placeholder="https://yourbusiness.com">
+            <div class="form-grid">
+              <div><label for="country">Country</label><input id="country" maxlength="2" placeholder="IN"></div>
+              <div><label for="currency">Currency</label><input id="currency" maxlength="3" placeholder="inr"></div>
             </div>
-            <button class="btn wide">Save policy</button>
-          </form>
-        </div>
+            <label for="business-type">Business type</label>
+            <select id="business-type">
+              <option value="farm">Farm</option>
+              <option value="grocery">Grocery</option>
+              <option value="restaurant">Restaurant / canteen</option>
+              <option value="game_studio">Game studio</option>
+              <option value="retail">Retail</option>
+              <option value="education">Education</option>
+              <option value="services">Services</option>
+              <option value="other">Other</option>
+            </select>
+            <label for="description">What do you sell, and what is the wallet for?</label>
+            <input id="description" maxlength="2000" placeholder="Weekly vegetable boxes, customers prepay monthly">
+          </div>
+          <label for="email">Email address</label>
+          <input id="email" type="email" autocomplete="email" placeholder="you@business.com" required>
+          <label for="password">Password</label>
+          <input id="password" type="password" autocomplete="current-password" placeholder="Enter your password" required minlength="8">
+          <p id="auth-error" class="form-error" role="alert" hidden></p>
+          <button class="primary-button full" type="submit"><span id="auth-submit-label">Sign in</span><span aria-hidden="true">→</span></button>
+        </form>
+        <p class="auth-note" id="apply-note" hidden>Every application is reviewed by hand. Crypto, gambling and money-transfer businesses are not accepted.</p>
       </div>
-
-      <div class="card" style="margin-top:16px">
-        <h2>Customer wallets</h2>
-        <div class="table-wrap"><table>
-          <thead><tr><th>Customer</th><th>Name</th><th>Status</th><th class="num">Balance</th></tr></thead>
-          <tbody id="walletRows"></tbody>
-        </table></div>
-      </div>
-
-      <div class="card" style="margin-top:16px">
-        <h2>Ledger</h2>
-        <div class="table-wrap"><table>
-          <thead><tr><th>When</th><th>Txn</th><th>Customer</th><th>Type</th><th>Reference</th><th class="num">Amount</th><th class="num">Balance after</th></tr></thead>
-          <tbody id="txnRows"></tbody>
-        </table></div>
-      </div>
-    </div>
+    </main>
   </div>
 
-  <script src="/static/js/common.js"></script>
-  <script src="/static/js/merchant.js"></script>
+  <!-- Verification: declaration + review status (teammate's verification module) -->
+  <div id="pending-screen" class="auth-screen" hidden>
+    <div class="auth-intro">
+      <a class="brand brand-large" href="/"><span class="brand-mark">◈</span><span>hijasi<span class="brand-dot">.</span></span></a>
+      <div class="auth-copy">
+        <span class="eyebrow light">MERCHANT VERIFICATION</span>
+        <h1>Tell us who you are.</h1>
+        <p>Declare your business and what you sell. A reviewer compares it with the business register and your catalogue before API access is switched on.</p>
+        <ol class="steps-list">
+          <li>Fill in the declaration and save a draft</li>
+          <li>Accept the policy and submit for review</li>
+          <li>A reviewer checks it and approves, rejects or asks for more information</li>
+        </ol>
+      </div>
+      <div class="auth-foot">Approval records an internal review. It is not legal certification or payment-provider approval.</div>
+      <div class="auth-orb orb-one"></div><div class="auth-orb orb-two"></div>
+    </div>
+    <main class="auth-form-panel scroll-panel">
+      <div class="auth-card wide-card">
+        <span class="eyebrow">APPLICATION STATUS</span>
+        <h2 id="pending-title">Complete your application</h2>
+        <p id="pending-text">Save a draft, then submit it for review.</p>
+        <div class="status-row"><span id="pending-pill" class="status-pill status-draft">not started</span><span id="pending-version" class="table-secondary"></span></div>
+        <div id="review-reason" class="banner" hidden></div>
+        <form id="verification-form" novalidate>
+          <fieldset id="verification-fields"></fieldset>
+          <div id="policy-box" class="policy-box"></div>
+          <p id="verification-message" class="form-message" role="status"></p>
+          <div class="button-row">
+            <button id="save-draft" class="secondary-button" type="button">Save draft <span aria-hidden="true">↓</span></button>
+            <button id="submit-application" class="primary-button" type="button">Submit for review <span aria-hidden="true">→</span></button>
+          </div>
+        </form>
+        <div class="button-row" style="margin-top:12px">
+          <button id="pending-refresh" class="secondary-button" type="button">Refresh status <span aria-hidden="true">↻</span></button>
+          <button class="secondary-button logout-action" type="button">Sign out <span aria-hidden="true">↪</span></button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="app-shell" class="app-shell" hidden>
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-head">
+        <a class="brand" href="/"><span class="brand-mark">◈</span><span>hijasi<span class="brand-dot">.</span></span></a>
+        <button id="sidebar-close" class="icon-button mobile-only" type="button" aria-label="Close menu">×</button>
+      </div>
+      <div class="workspace-switch"><span class="workspace-avatar" id="workspace-avatar">G</span><span class="workspace-text"><strong id="workspace-name">—</strong><small id="workspace-meta">Merchant workspace</small></span></div>
+      <div class="nav-caption">WORKSPACE</div>
+      <nav class="nav" aria-label="Main navigation">
+        <button type="button" class="nav-link active" data-page="overview"><span class="nav-icon">▦</span> Overview</button>
+        <button type="button" class="nav-link" data-page="customers"><span class="nav-icon">♙</span> Customer wallets</button>
+        <button type="button" class="nav-link" data-page="transactions"><span class="nav-icon">⇄</span> Transactions</button>
+        <button type="button" class="nav-link" data-page="developers"><span class="nav-icon">⌘</span> API keys</button>
+        <button type="button" class="nav-link" data-page="settings"><span class="nav-icon">⚙</span> Settings</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="demo-card"><span class="demo-card-icon">✳</span><strong>Closed-loop wallets</strong><p>Balances can only be spent at your business. There is no cash-out.</p></div>
+        <button class="logout-button logout-action" type="button"><span class="nav-icon">↪</span> Sign out</button>
+      </div>
+    </aside>
+
+    <div class="main-wrap">
+      <header class="topbar">
+        <div class="topbar-left"><button id="menu-button" class="icon-button mobile-only" type="button" aria-label="Open menu">☰</button><span id="breadcrumb">Workspace <span class="crumb-separator">/</span> Overview</span></div>
+        <div class="topbar-right"><span class="environment-pill"><span class="status-dot"></span> <span id="gateway-label">Test mode</span></span><span class="topbar-divider"></span><span class="user-avatar" id="user-avatar">M</span><span id="user-name" class="user-name"></span></div>
+      </header>
+
+      <main class="content">
+        <div id="banner" class="banner" hidden></div>
+
+        <section id="page-overview" class="page active">
+          <div class="page-heading">
+            <div><div class="eyebrow">MERCHANT DASHBOARD</div><h1>Good to see you, <span id="greeting-name">there</span> <span class="wave">✳</span></h1><p>Here is what is happening with your customer wallets.</p></div>
+            <div class="heading-date" id="today-date"></div>
+          </div>
+          <div class="stats-grid">
+            <article class="stat-card"><div class="stat-top"><span>Held in wallets</span><span class="stat-icon mint">◈</span></div><strong id="stat-float">—</strong><small>Prepaid balance across all customers</small></article>
+            <article class="stat-card"><div class="stat-top"><span>Customer wallets</span><span class="stat-icon peach">♙</span></div><strong id="stat-wallets">—</strong><small><span id="stat-active">—</span> active wallets</small></article>
+            <article class="stat-card"><div class="stat-top"><span>Topped up</span><span class="stat-icon lavender">↗</span></div><strong id="stat-topups">—</strong><small>Confirmed by the payment gateway</small></article>
+            <article class="stat-card"><div class="stat-top"><span>Spent on orders</span><span class="stat-icon sand">⇄</span></div><strong id="stat-spent">—</strong><small><span id="stat-txns">—</span> ledger entries in total</small></article>
+          </div>
+          <div class="overview-grid">
+            <article class="panel activity-panel">
+              <div class="panel-title-row"><div><h2>Transaction activity</h2><p>Ledger entries per day over the last 7 days</p></div><span class="period-label">Last 7 days</span></div>
+              <div id="activity-chart" class="activity-chart" aria-label="Transaction counts for the last seven days"></div>
+            </article>
+            <article class="panel currency-panel">
+              <div class="currency-art"><div class="currency-ring ring-a"></div><div class="currency-ring ring-b"></div><span>◈</span></div>
+              <span class="eyebrow light">WALLET POLICY</span>
+              <h2 id="policy-currency">EUR wallets</h2>
+              <p>Limits that protect your customers and keep you within closed-loop rules.</p>
+              <div class="currency-rate"><span>Top-up range</span><strong id="policy-range">—</strong></div>
+              <div class="currency-rate" style="margin-top:10px"><span>Max balance</span><strong id="policy-max">—</strong></div>
+              <button type="button" class="text-button light-link" data-page="settings">Manage policy <span>→</span></button>
+            </article>
+          </div>
+          <div class="section-heading"><div><h2>Recent transactions</h2><p>The latest wallet activity.</p></div><button type="button" class="text-button" data-page="transactions">View all transactions <span>→</span></button></div>
+          <div class="panel table-panel"><div class="table-scroll"><table>
+            <thead><tr><th>TRANSACTION</th><th>CUSTOMER</th><th>DATE</th><th>AMOUNT</th><th>TYPE</th></tr></thead>
+            <tbody id="recent-transactions"></tbody>
+          </table></div></div>
+        </section>
+
+        <section id="page-customers" class="page">
+          <div class="page-heading"><div><div class="eyebrow">CUSTOMER ACTIVITY</div><h1>Customer wallets</h1><p>Wallets are created through the API when a customer first uses your shop.</p></div></div>
+          <div class="panel data-panel">
+            <div class="data-toolbar"><div><h2>All wallets</h2><p id="customer-count">— customers</p></div><label class="search-box"><span>⌕</span><input id="customer-search" type="search" placeholder="Search name or customer ID" aria-label="Search customers"></label></div>
+            <div class="table-scroll"><table>
+              <thead><tr><th>CUSTOMER</th><th>CUSTOMER ID</th><th>BALANCE</th><th>STATUS</th><th>LAST ACTIVITY</th></tr></thead>
+              <tbody id="customer-rows"></tbody>
+            </table></div>
+          </div>
+        </section>
+
+        <section id="page-transactions" class="page">
+          <div class="page-heading"><div><div class="eyebrow">LEDGER HISTORY</div><h1>Transactions</h1><p>Every top-up, charge and refund. The ledger is append-only.</p></div></div>
+          <div class="panel data-panel">
+            <div class="data-toolbar"><div><h2>Transaction history</h2><p id="transaction-count">— transactions</p></div>
+              <select id="transaction-filter" aria-label="Filter transactions"><option value="all">All types</option><option value="topup">Top-ups</option><option value="charge">Charges</option><option value="refund">Refunds</option></select></div>
+            <div class="table-scroll"><table>
+              <thead><tr><th>TRANSACTION</th><th>CUSTOMER</th><th>REFERENCE</th><th>DATE</th><th>AMOUNT</th><th>BALANCE AFTER</th><th>TYPE</th></tr></thead>
+              <tbody id="transaction-rows"></tbody>
+            </table></div>
+          </div>
+        </section>
+
+        <section id="page-developers" class="page">
+          <div class="page-heading"><div><div class="eyebrow">DEVELOPERS</div><h1>API keys</h1><p>Connect your shop's server to HIJASI.</p></div></div>
+          <div class="settings-grid">
+            <div class="panel settings-panel">
+              <h2>Secret key</h2>
+              <p>Use it from your server only, as <code>Authorization: Bearer sk_test_…</code>. Never put it in browser code.</p>
+              <div id="key-info" class="key-info"></div>
+              <div id="new-key" hidden></div>
+              <button id="roll-key" class="primary-button" type="button">Generate new key <span>→</span></button>
+            </div>
+            <div class="settings-aside">
+              <div class="panel info-panel"><span class="info-icon">⌁</span><h3>One active key</h3><p>Generating a new key revokes the old one straight away. We only store a hash, so a lost key can't be recovered.</p></div>
+              <div class="panel info-panel"><span class="info-icon">◎</span><h3>API reference</h3><p>Wallets, top-ups, charges, refunds and idempotency keys.</p><a class="text-button" href="/docs">Open the docs <span>→</span></a></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="page-settings" class="page">
+          <div class="page-heading"><div><div class="eyebrow">WORKSPACE CONFIGURATION</div><h1>Settings</h1><p>Your business details and wallet limits.</p></div></div>
+          <div class="settings-grid">
+            <form id="settings-form" class="panel settings-panel">
+              <h2>Business & wallet policy</h2>
+              <p>These settings apply only to your merchant workspace.</p>
+              <label for="setting-name">Business name</label>
+              <input id="setting-name" required maxlength="150">
+              <div class="form-grid">
+                <div><label for="setting-min">Min top-up (<span class="cur">EUR</span>)</label><input id="setting-min" type="number" step="0.01" min="0.01" required></div>
+                <div><label for="setting-max">Max top-up (<span class="cur">EUR</span>)</label><input id="setting-max" type="number" step="0.01" min="0.01" required></div>
+              </div>
+              <label for="setting-balance">Max wallet balance (<span class="cur">EUR</span>)</label>
+              <input id="setting-balance" type="number" step="0.01" min="0.01" required>
+              <p class="field-hint">Limits apply to new top-ups. Existing balances and ledger entries stay as recorded.</p>
+              <p id="settings-message" class="form-message" role="status"></p>
+              <button class="primary-button" type="submit">Save changes <span>→</span></button>
+            </form>
+            <div class="settings-aside">
+              <div class="panel info-panel"><span class="info-icon">⌁</span><h3>Closed-loop by design</h3><p>Each wallet belongs to one business. Balances can't move between merchants or be withdrawn as cash.</p></div>
+              <div class="panel info-panel"><span class="info-icon">◎</span><h3>Account details</h3><p id="account-details">—</p></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
 </body>
 </html>

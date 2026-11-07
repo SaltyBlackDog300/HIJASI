@@ -19,6 +19,7 @@ Team: Siam, Hieu, Jason — Oslo sprint hackathon 2026.
 | `backend/` | Python Flask API + MySQL ledger (port 5000) |
 | `backend/schema.sql` | Database tables |
 | `frontend/` | Landing page, merchant dashboard, admin panel, API docs (plain HTML/CSS/JS) |
+| `backend/merchant_verification/` | Merchant verification module (declarations, human review, audit trail), mounted at `/verification` |
 | `demo-farm/` | **Green Valley Farm**, a separate demo shop that integrates over the API (port 5001) |
 
 ## Run it
@@ -54,9 +55,12 @@ python app.py               # http://localhost:5001
 1. **Farm shop** — http://localhost:5001: log in with any name + phone, top up 50.00, pay, buy a veg box.
 2. **Merchant dashboard** — http://localhost:5000/merchant, log in as `farm@demo.hijasi` / `farmdemo123`:
    wallet balances, ledger, API key, top-up limits.
-3. **New merchant** — apply at `/merchant#register` → it waits for review.
-4. **Admin** — http://localhost:5000/admin with your `ADMIN_TOKEN`: approve/reject, risk-word flags
-   (crypto, gambling, forex, …).
+3. **New merchant** — apply at `/merchant#register`, then fill in the verification declaration,
+   save a draft and submit it.
+4. **Admin** — http://localhost:5000/admin with your `ADMIN_TOKEN`: *Start review* → tick the three
+   checks, add evidence and a reason → *Approve* (or reject / request information). Suspend or
+   reopen later; every step is in the audit history. Approval switches on API keys; suspend,
+   reject or reopen revokes them immediately.
 5. **API docs** — http://localhost:5000/docs
 
 ## Payments
