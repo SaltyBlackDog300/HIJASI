@@ -50,3 +50,5 @@ input { padding: 12px; border: 1px solid var(--line); border-radius: 10px; width
 .notice { margin-top: 18px; padding: 12px 14px; border-radius: 10px; background: var(--green-2); color: var(--green); font-family: system-ui, sans-serif; }
 .notice.error { background: #f8e3df; color: var(--red); }
 .empty { color: var(--muted); }
+
+.topups .btn small { display: block; font-size: 10px; font-weight: 600; opacity: .8; margin-top: 2px; pointer-events: none; }

@@ -1,5 +1,6 @@
 import hashlib
 import os
+from datetime import date
 import re
 import secrets
 from functools import wraps
@@ -15,6 +16,7 @@ import config
 import mailer
 import migrations
 import payments
+import pricing
 import wallet as W
 from db import query, tx
 from errors import ApiError
@@ -175,6 +177,7 @@ def merchant_public(m):
         "description": m["description"],
         "currency": m["currency"],
         "status": m["status"],
+        "plan": m.get("plan") or pricing.DEFAULT_PLAN,
         "email_verified": bool(m.get("email_verified")),
         "review_note": m["review_note"],
         "policy": {"min_topup": m["min_topup"], "max_topup": m["max_topup"],
@@ -215,6 +218,10 @@ def notify_entry(entry_id):
     greeting = f"Hi {e['display_name']}," if e["display_name"] else "Hi,"
     if e["type"] == "topup":
         subject, line = f"Receipt: {amt} added to your {shop} wallet", f"You topped up your {shop} wallet with {amt}."
+        t = query("SELECT fee, total_charged FROM topups WHERE public_id=%s", (e["reference"],), one=True)
+        if t and t["fee"]:
+            line += (f" You paid {mailer.money(t['total_charged'], e['currency'])}, including a "
+                     f"{mailer.money(t['fee'], e['currency'])} Kassara fee.")
     elif e["type"] == "charge":
         subject = f"Receipt: {amt} paid at {shop}"
         line = f"You paid {amt} from your {shop} wallet" + (f" for: {e['description']}." if e["description"] else ".")
@@ -236,6 +243,46 @@ def credit_and_notify(topup_id):
     if was != "succeeded" and t["status"] == "succeeded":
         notify_entry(t["ledger_entry_id"])
     return t
+
+
+def effective_plan(merchant_id):
+    """Current plan key; applies a scheduled downgrade once its date has arrived."""
+    m = query("SELECT plan, plan_pending, plan_pending_from FROM merchants WHERE id=%s",
+              (merchant_id,), one=True)
+    if m["plan_pending"] and m["plan_pending_from"] and m["plan_pending_from"] <= date.today():
+        query("UPDATE merchants SET plan=plan_pending, plan_pending=NULL, plan_pending_from=NULL "
+              "WHERE id=%s AND plan_pending=%s", (merchant_id, m["plan_pending"]))
+        return m["plan_pending"]
+    return m["plan"] if m["plan"] in pricing.PLANS else pricing.DEFAULT_PLAN
+
+
+def month_usage(merchant_id, cur=None):
+    since = pricing.month_start()
+    sql_t = "SELECT COUNT(*) AS n FROM ledger_entries WHERE merchant_id=%s AND created_at >= %s"
+    sql_v = """SELECT COALESCE(SUM(amount),0) AS volume, COALESCE(SUM(fee),0) AS fees, COUNT(*) AS n
+               FROM topups WHERE merchant_id=%s AND status='succeeded' AND completed_at >= %s"""
+    if cur:
+        cur.execute(sql_t, (merchant_id, since)); t = cur.fetchone()
+        cur.execute(sql_v, (merchant_id, since)); v = cur.fetchone()
+    else:
+        t = query(sql_t, (merchant_id, since), one=True)
+        v = query(sql_v, (merchant_id, since), one=True)
+    return {"transactions": int(t["n"]), "topup_volume": int(v["volume"]),
+            "topup_fees": int(v["fees"]), "topups": int(v["n"])}
+
+
+def price_topup(m, amount, cur=None):
+    """Server-side price breakdown for one top-up. Raises if the plan's volume allowance blocks it."""
+    plan_key = effective_plan(m["id"])
+    usage = month_usage(m["id"], cur)
+    fee, label, blocked = pricing.topup_fee(plan_key, m["currency"], amount, usage["topup_volume"])
+    if blocked:
+        raise ApiError(402, "topup_volume_limit",
+                       f"This business has reached its {pricing.plan(plan_key)['name']} plan's {blocked}")
+    return {"plan": plan_key, "amount": amount, "fee": fee, "total": amount + fee,
+            "currency": m["currency"], "fee_label": label,
+            "note": "The customer's wallet is credited with the amount only. "
+                    "Payment-processing fees of the payment provider are separate."}
 
 
 EMAIL_RE = re.compile(r"[^@\s]+@[^@\s]+\.[^@\s]+")
@@ -624,19 +671,36 @@ def v1_create_topup(customer_id):
     if return_url is not None and not valid_http_url(return_url):
         raise ApiError(400, "invalid_return_url", "return_url must be a full http(s) URL")
     with tx() as cur:
+        cur.execute("SELECT id FROM merchants WHERE id=%s FOR UPDATE", (m["id"],))  # serialise allowance checks
         w = W.get_or_create_wallet(cur, m["id"], customer_id)
         amount = W.check_topup_allowed(m, w, d.get("amount"))
+        quote = price_topup(m, amount, cur)
         public_id = W.new_id("top")
-        topup = {"public_id": public_id, "amount": amount, "currency": m["currency"]}
+        topup = {"public_id": public_id, "amount": amount, "fee": quote["fee"], "currency": m["currency"]}
         provider_ref, checkout_url = payments.create_checkout(topup, m)
         cur.execute(
-            """INSERT INTO topups (public_id, wallet_id, merchant_id, amount, currency, provider,
-               provider_ref, return_url) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)""",
-            (public_id, w["id"], m["id"], amount, m["currency"], payments.provider_name(),
-             provider_ref, return_url),
+            """INSERT INTO topups (public_id, wallet_id, merchant_id, amount, fee, total_charged, plan,
+               currency, provider, provider_ref, return_url) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+            (public_id, w["id"], m["id"], amount, quote["fee"], quote["total"], quote["plan"],
+             m["currency"], payments.provider_name(), provider_ref, return_url),
         )
-    return jsonify({"id": public_id, "status": "pending", "amount": amount,
-                    "currency": m["currency"], "checkout_url": checkout_url}), 201
+    return jsonify({"id": public_id, "status": "pending", **quote, "checkout_url": checkout_url}), 201
+
+
+@app.get("/v1/pricing/quote")
+@api_key_required
+def v1_quote():
+    """Price breakdown to show the customer before they go to checkout."""
+    m = g.merchant
+    try:
+        amount = int(request.args.get("amount", ""))
+    except ValueError:
+        raise ApiError(400, "invalid_amount", "amount must be a positive integer (minor units)")
+    cid = request.args.get("customer_id")
+    w = query("SELECT * FROM wallets WHERE merchant_id=%s AND customer_ref=%s", (m["id"], cid), one=True) \
+        if cid else None
+    amount = W.check_topup_allowed(m, w or {"balance": 0, "status": "active"}, amount)
+    return jsonify(price_topup(m, amount))
 
 
 def _sync_topup(public_id, merchant_id=None):
@@ -655,6 +719,7 @@ def _sync_topup(public_id, merchant_id=None):
 
 def topup_out(t):
     return {"id": t["public_id"], "status": t["status"], "amount": t["amount"],
+            "fee": t.get("fee") or 0, "total": t.get("total_charged") or t["amount"],
             "currency": t["currency"], "provider": t["provider"]}
 
 
@@ -700,8 +765,9 @@ MOCK_PAGE = """<!doctype html><html><head><meta charset="utf-8">
 <title>Mock Gateway</title><link rel="stylesheet" href="/static/css/style.css"></head>
 <body class="center-page"><div class="card narrow">
 <p class="eyebrow">Mock payment gateway · test mode</p>
-<h1>Pay {{ amount }}</h1>
+<h1>Pay {{ total }}</h1>
 <p>Top-up for <b>{{ merchant }}</b> wallet <code>{{ customer }}</code>.</p>
+<p>Wallet credit {{ amount }}<br>Kassara fee {{ fee }}<br><b>Total {{ total }}</b></p>
 {% if status == 'pending' %}
 <form method="post"><button class="btn primary wide" name="result" value="pay">Pay now</button>
 <button class="btn ghost wide" name="result" value="cancel">Cancel</button></form>
@@ -727,6 +793,8 @@ def mock_pay(topup_id):
             query("UPDATE topups SET status='failed', completed_at=NOW() WHERE id=%s", (t["id"],))
         return redirect(f"/pay/return/{topup_id}")
     return render_template_string(MOCK_PAGE, amount=_money(t["amount"], t["currency"]),
+                                  fee=_money(t["fee"] or 0, t["currency"]),
+                                  total=_money(t["total_charged"] or t["amount"], t["currency"]),
                                   merchant=t["business_name"], customer=t["customer_ref"],
                                   status=t["status"])
 
@@ -753,6 +821,80 @@ def stripe_webhook():
         if t and obj.get("payment_status") == "paid":
             credit_and_notify(t["id"])
     return "ok"
+
+
+# ---------------------------------------------------------------- plans & billing
+
+@app.get("/api/pricing")
+def public_pricing():
+    return jsonify({"plans": pricing.public_plans(), "status": "proposed",
+                    "note": "Proposed launch prices. Payment-processing fees are charged separately "
+                            "by the payment provider. Top-up volume allowances for subscription "
+                            "plans are not final yet."})
+
+
+def billing_out(mid):
+    m = query("SELECT * FROM merchants WHERE id=%s", (mid,), one=True)
+    plan_key = effective_plan(mid)
+    m = query("SELECT * FROM merchants WHERE id=%s", (mid,), one=True)
+    p = pricing.plan(plan_key)
+    usage = month_usage(mid)
+    extra, extra_cost = pricing.overage_cost(plan_key, usage["transactions"])
+    history = query("SELECT from_plan, to_plan, effective_on, kind, created_at FROM plan_changes "
+                    "WHERE merchant_id=%s ORDER BY id DESC LIMIT 10", (mid,))
+    return {
+        "plan": plan_key,
+        "pending_plan": m["plan_pending"],
+        "pending_from": m["plan_pending_from"].isoformat() if m["plan_pending_from"] else None,
+        "plans": pricing.public_plans(),
+        "period": {"start": pricing.month_start().isoformat(), "end": pricing.next_month_start().isoformat()},
+        "usage": {**usage,
+                  "included_transactions": p["included_transactions"],
+                  "extra_transactions": extra,
+                  "topup_volume_allowance": p["topup_volume_allowance"]},
+        "estimate": {"currency": pricing.PRICING_CURRENCY, "subscription": p["monthly_price"],
+                     "transaction_overage": extra_cost, "total": p["monthly_price"] + extra_cost},
+        "history": [{**h, "effective_on": h["effective_on"].isoformat(),
+                     "created_at": h["created_at"].isoformat()} for h in history],
+    }
+
+
+@app.get("/api/billing")
+@login_required
+def get_billing():
+    return jsonify(billing_out(g.merchant["id"]))
+
+
+@app.put("/api/billing/plan")
+@login_required
+def change_plan():
+    """Upgrades start immediately; downgrades start on the 1st of next month.
+    Choosing the current plan cancels a scheduled downgrade."""
+    target = body().get("plan")
+    if target not in pricing.PLANS:
+        raise ApiError(400, "invalid_plan", f"plan must be one of: {', '.join(pricing.ORDER)}")
+    mid = g.merchant["id"]
+    current = effective_plan(mid)
+    with tx() as cur:
+        cur.execute("SELECT plan_pending FROM merchants WHERE id=%s FOR UPDATE", (mid,))
+        pending = cur.fetchone()["plan_pending"]
+        if target == current:
+            if pending:
+                cur.execute("UPDATE merchants SET plan_pending=NULL, plan_pending_from=NULL WHERE id=%s", (mid,))
+                cur.execute("""INSERT INTO plan_changes (merchant_id, from_plan, to_plan, effective_on, kind)
+                               VALUES (%s,%s,%s,%s,'cancel_downgrade')""", (mid, pending, current, date.today()))
+        elif pricing.ORDER.index(target) > pricing.ORDER.index(current):
+            cur.execute("UPDATE merchants SET plan=%s, plan_pending=NULL, plan_pending_from=NULL WHERE id=%s",
+                        (target, mid))
+            cur.execute("""INSERT INTO plan_changes (merchant_id, from_plan, to_plan, effective_on, kind)
+                           VALUES (%s,%s,%s,%s,'upgrade')""", (mid, current, target, date.today()))
+        else:
+            start = pricing.next_month_start()
+            cur.execute("UPDATE merchants SET plan_pending=%s, plan_pending_from=%s WHERE id=%s",
+                        (target, start, mid))
+            cur.execute("""INSERT INTO plan_changes (merchant_id, from_plan, to_plan, effective_on, kind)
+                           VALUES (%s,%s,%s,%s,'downgrade')""", (mid, current, target, start))
+    return jsonify(billing_out(mid))
 
 
 checkout.register(app, api_key_required, notify_entry)

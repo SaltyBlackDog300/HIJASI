@@ -147,6 +147,23 @@ With `SMTP_HOST` empty, emails are written to `stderr.log` instead. Merchant acc
 this update are marked as verified automatically. For better inbox delivery, make sure
 **Email → Email Deliverability** shows SPF and DKIM as valid for kassara.org.
 
+## 10. Pricing plans
+
+Plans live in `backend/pricing.py` (Starter €0 + 3% top-up fee min. €0.50, Business €29, Business Pro €79).
+Merchants switch plans under **Plan & billing** in the dashboard: upgrades apply immediately, downgrades
+on the 1st of next month. Top-up volume allowances for Business / Business Pro are **not decided yet**;
+they show as "To be confirmed" and volume is tracked. Once decided, add to `.env` and restart, e.g.
+
+```
+PLAN_BUSINESS_TOPUP_ALLOWANCE=2500000      # minor units per month (25,000.00 EUR)
+PLAN_BUSINESS_VOLUME_FEE_BPS=150           # 1.5% above the allowance; leave out to refuse instead
+PLAN_BUSINESS_PRO_TOPUP_ALLOWANCE=...
+PLAN_BUSINESS_PRO_VOLUME_FEE_BPS=...
+KASSARA_MIN_FEE_INR=4500                   # minimum Starter fee for non-EUR merchants (optional)
+```
+
+These are proposed launch prices in test mode; subscriptions are tracked and estimated, not charged.
+
 ## Shared-hosting limitations
 
 - **No background workers or long-running processes.** Passenger starts the app on the first request

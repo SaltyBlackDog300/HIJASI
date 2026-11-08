@@ -322,8 +322,56 @@ async function loadSettings() {
   $("account-details").innerHTML = `${esc(m.email)}<br>${esc(m.website)}<br>${esc(m.country)} · ${esc(m.business_type.replace("_", " "))} · ${esc(cur())}`;
 }
 
-const LOADERS = { overview: loadOverview, customers: loadCustomers, transactions: loadTransactions, settings: loadSettings, developers: async () => {} };
-const TITLES = { overview: "Overview", customers: "Customer wallets", transactions: "Transactions", developers: "API keys", settings: "Settings" };
+// ---------------------------------------------------------------- plan & billing
+
+const eurFmt = (c) => new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR" }).format((c || 0) / 100);
+
+function renderBilling(b) {
+  const plan = b.plans.find(p => p.id === b.plan);
+  const names = Object.fromEntries(b.plans.map(p => [p.id, p.name]));
+  const u = b.usage;
+  setText("billing-period", `Usage from ${dateLabel(b.period.start)} until ${dateLabel(b.period.end)} (exclusive).`);
+  setText("bill-plan", plan.name);
+  setText("bill-plan-price", `${eurFmt(plan.monthly_price)} / month`);
+  setText("bill-txns", `${u.transactions.toLocaleString("en")} / ${u.included_transactions.toLocaleString("en")}`);
+  setText("bill-txns-note", u.extra_transactions ? `${u.extra_transactions} extra, ${eurFmt(b.estimate.transaction_overage)}` : "Within your allowance");
+  $("bill-txns-meter").classList.toggle("over", u.extra_transactions > 0);
+  $("bill-txns-meter").firstElementChild.style.width = Math.min(100, 100 * u.transactions / u.included_transactions) + "%";
+  setText("bill-volume", money(u.topup_volume));
+  setText("bill-volume-note", plan.topup_fee_percent
+    ? `${u.topups} top-ups · customers paid ${money(u.topup_fees)} in Kassara fees`
+    : (u.topup_volume_allowance == null ? "Allowance: to be confirmed" : `of ${money(u.topup_volume_allowance)} allowance`));
+  setText("bill-total", eurFmt(b.estimate.total));
+  setText("bill-total-note", `${eurFmt(b.estimate.subscription)} plan + ${eurFmt(b.estimate.transaction_overage)} extra transactions`);
+  $("billing-pending").hidden = !b.pending_plan;
+  $("billing-pending").textContent = b.pending_plan ? `Your plan changes to ${names[b.pending_plan]} on ${dateLabel(b.pending_from)}.` : "";
+  renderPlanCards($("billing-plans"), b.plans, {
+    current: b.plan,
+    action: p => {
+      if (p.id === b.plan) return b.pending_plan
+        ? `<button class="secondary-button plan-cta" data-plan="${p.id}" type="button">Keep ${esc(p.name)} <span>↺</span></button>`
+        : `<button class="secondary-button plan-cta" type="button" disabled>Current plan</button>`;
+      if (p.id === b.pending_plan) return `<button class="secondary-button plan-cta" type="button" disabled>Starts ${esc(dateLabel(b.pending_from))}</button>`;
+      const up = b.plans.findIndex(x => x.id === p.id) > b.plans.findIndex(x => x.id === b.plan);
+      return `<button class="${up ? "primary-button" : "secondary-button"} plan-cta" data-plan="${p.id}" type="button">${up ? "Upgrade now" : "Downgrade next month"} <span>→</span></button>`;
+    },
+  });
+  $("billing-plans").querySelectorAll("[data-plan]").forEach(btn => btn.addEventListener("click", () => changePlan(btn.dataset.plan, names)));
+}
+
+async function changePlan(planId, names) {
+  try {
+    const b = await api("/api/billing/plan", { method: "PUT", body: { plan: planId } });
+    renderBilling(b);
+    $("billing-message").style.color = "#2d8b4f";
+    setText("billing-message", b.plan === planId && !b.pending_plan ? `You're now on ${names[planId]}.` : `Scheduled: ${names[b.pending_plan]} from ${dateLabel(b.pending_from)}.`);
+  } catch (err) { $("billing-message").style.color = "#ab4c45"; setText("billing-message", err.message); }
+}
+
+async function loadBilling() { setText("billing-message", ""); renderBilling(await api("/api/billing")); }
+
+const LOADERS = { overview: loadOverview, customers: loadCustomers, transactions: loadTransactions, settings: loadSettings, billing: loadBilling, developers: async () => {} };
+const TITLES = { overview: "Overview", customers: "Customer wallets", transactions: "Transactions", developers: "API keys", billing: "Plan & billing", settings: "Settings" };
 
 async function loadPage(page) {
   try { showBanner(""); await LOADERS[page](); }

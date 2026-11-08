@@ -42,13 +42,19 @@ GET /v1/wallets/{customer_id}</pre>
     <section class="panel doc-block">
       <h2>Top up</h2>
       <p>Creates a pending top-up and returns a checkout URL. Redirect the customer there. Afterwards they are sent to <code>return_url?topup=top_…&amp;status=succeeded</code>. The wallet is credited only after the gateway confirms payment, within your wallet policy limits.</p>
-      <pre class="code">POST /v1/wallets/{customer_id}/topups
-{ "amount": 100000, "return_url": "https://yourshop.com/wallet" }
+      <p>On the Starter plan the customer pays the top-up plus a Kassara fee (3%, min. €0.50); the wallet is credited with <code>amount</code> only. Show the breakdown before checkout with the quote endpoint. Payment-provider processing fees are separate.</p>
+      <pre class="code">GET /v1/pricing/quote?amount=5000&amp;customer_id=cust_42
+→ 200 { "amount": 5000, "fee": 150, "total": 5150, "plan": "starter",
+        "fee_label": "3% Kassara fee (min. 0.50 EUR)" }
 
-→ 201 { "id": "top_…", "status": "pending", "checkout_url": "https://…" }
+POST /v1/wallets/{customer_id}/topups
+{ "amount": 5000, "return_url": "https://yourshop.com/wallet" }
+
+→ 201 { "id": "top_…", "status": "pending", "amount": 5000, "fee": 150, "total": 5150,
+        "checkout_url": "https://…" }
 
 GET /v1/topups/{topup_id}
-→ 200 { "id": "top_…", "status": "succeeded", "amount": 100000 }</pre>
+→ 200 { "id": "top_…", "status": "succeeded", "amount": 5000, "fee": 150, "total": 5150 }</pre>
     </section>
 
     <section class="panel doc-block">
@@ -92,7 +98,7 @@ Idempotency-Key: order-1007
     <section class="panel doc-block">
       <h2>Errors</h2>
       <pre class="code">{ "error": { "code": "insufficient_funds", "message": "Wallet balance is too low", "balance": 1200 } }</pre>
-      <p>Codes include <code>invalid_api_key</code>, <code>merchant_not_approved</code>, <code>wallet_not_found</code>, <code>insufficient_funds</code>, <code>below_min_topup</code>, <code>above_max_topup</code>, <code>max_balance_exceeded</code>, <code>refund_exceeds_charge</code> and <code>idempotency_conflict</code>.</p>
+      <p>Codes include <code>invalid_api_key</code>, <code>merchant_not_approved</code>, <code>wallet_not_found</code>, <code>insufficient_funds</code>, <code>below_min_topup</code>, <code>above_max_topup</code>, <code>max_balance_exceeded</code>, <code>refund_exceeds_charge</code>, <code>topup_volume_limit</code> and <code>idempotency_conflict</code>.</p>
     </section>
   </main>
 

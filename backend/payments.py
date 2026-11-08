@@ -31,7 +31,14 @@ def create_checkout(topup, merchant):
                     "product_data": {"name": f"{merchant['business_name']} wallet top-up"},
                 },
                 "quantity": 1,
-            }],
+            }] + ([{
+                "price_data": {
+                    "currency": topup["currency"],
+                    "unit_amount": topup["fee"],
+                    "product_data": {"name": "Kassara top-up fee"},
+                },
+                "quantity": 1,
+            }] if topup.get("fee") else []),
             success_url=return_url,
             cancel_url=return_url,
             metadata={"topup_id": topup["public_id"]},

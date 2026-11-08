@@ -125,6 +125,18 @@ def topup():
     return passthrough(status, data)
 
 
+@app.get("/api/topup-quote")
+def topup_quote():
+    """Ask Kassara for the price breakdown (wallet credit + Kassara fee) before checkout."""
+    cid = customer_id()
+    if not cid:
+        return jsonify({"error": {"message": "Not logged in"}}), 401
+    amount = request.args.get("amount", "")
+    if not amount.isdigit():
+        return jsonify({"error": {"message": "Invalid amount"}}), 400
+    return passthrough(*hijasi("GET", f"/v1/pricing/quote?amount={amount}&customer_id={cid}"))
+
+
 @app.get("/api/topup/<topup_id>")
 def topup_status(topup_id):
     if not customer_id():

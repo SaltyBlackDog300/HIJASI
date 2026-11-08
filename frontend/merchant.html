@@ -6,6 +6,7 @@
   <meta name="theme-color" content="#10231e">
   <title>Kassara — Merchant dashboard</title>
   <link rel="stylesheet" href="/static/css/dashboard.css">
+  <script defer src="/static/js/pricing.js"></script>
   <script defer src="/static/js/merchant.js"></script>
 </head>
 <body>
@@ -125,6 +126,7 @@
         <button type="button" class="nav-link" data-page="customers"><span class="nav-icon">♙</span> Customer wallets</button>
         <button type="button" class="nav-link" data-page="transactions"><span class="nav-icon">⇄</span> Transactions</button>
         <button type="button" class="nav-link" data-page="developers"><span class="nav-icon">⌘</span> API keys</button>
+        <button type="button" class="nav-link" data-page="billing"><span class="nav-icon">€</span> Plan & billing</button>
         <button type="button" class="nav-link" data-page="settings"><span class="nav-icon">⚙</span> Settings</button>
       </nav>
       <div class="sidebar-bottom">
@@ -212,6 +214,24 @@
               <div class="panel info-panel"><span class="info-icon">⌁</span><h3>One active key</h3><p>Generating a new key revokes the old one straight away. We only store a hash, so a lost key can't be recovered.</p></div>
               <div class="panel info-panel"><span class="info-icon">◎</span><h3>API reference</h3><p>Wallets, top-ups, charges, refunds and idempotency keys.</p><a class="text-button" href="/docs">Open the docs <span>→</span></a></div>
             </div>
+          </div>
+        </section>
+
+        <section id="page-billing" class="page">
+          <div class="page-heading"><div><div class="eyebrow">PLAN & BILLING</div><h1>Your plan</h1><p id="billing-period">Usage this month and your estimated Kassara bill.</p></div></div>
+          <div id="billing-pending" class="banner" hidden></div>
+          <div class="usage-grid">
+            <div class="stat-card"><div class="stat-top">Current plan<span class="stat-icon mint">€</span></div><strong id="bill-plan">—</strong><small id="bill-plan-price"></small></div>
+            <div class="stat-card"><div class="stat-top">Wallet transactions<span class="stat-icon peach">⇄</span></div><strong id="bill-txns">—</strong><small id="bill-txns-note"></small><div class="usage-meter" id="bill-txns-meter"><span></span></div></div>
+            <div class="stat-card"><div class="stat-top">Top-up volume<span class="stat-icon lavender">↑</span></div><strong id="bill-volume">—</strong><small id="bill-volume-note"></small></div>
+            <div class="stat-card"><div class="stat-top">Estimated bill<span class="stat-icon sand">≡</span></div><strong id="bill-total">—</strong><small id="bill-total-note"></small></div>
+          </div>
+          <div class="section-heading"><div><h2>Change plan</h2><p>Upgrades start immediately. Downgrades start on the 1st of next month.</p></div></div>
+          <div id="billing-plans" class="plan-grid"></div>
+          <p id="billing-message" class="form-message" role="status"></p>
+          <div class="pricing-notes">
+            <p><strong>Payment-processing fees are separate</strong> and charged by your payment provider. Starter top-up fees are paid by the customer on top of the top-up; the wallet is credited with the top-up amount only.</p>
+            <p><strong>Proposed launch prices, test mode.</strong> Top-up volume allowances for Business and Business Pro are not final yet; your volume is tracked in the meantime. No real money is billed.</p>
           </div>
         </section>
 

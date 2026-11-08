@@ -52,9 +52,21 @@ function renderCart() {
   pay.textContent = total > balance ? `Top up to pay (${money(total - balance)} short)` : "Pay with wallet";
 }
 
-function renderTopups(policy) {
+async function renderTopups(policy) {
   const presets = [2000, 5000, 10000].filter(a => !policy || (a >= policy.min_topup && a <= policy.max_topup));
-  $("#topupBtns").innerHTML = presets.map(a => `<button class="btn" data-topup="${a}">+ ${money(a)}</button>`).join("");
+  $("#topupBtns").innerHTML = presets.map(a => `<button class="btn" data-topup="${a}">+ ${money(a)}<small data-pay="${a}"></small></button>`).join("");
+  // Price breakdown from Kassara before checkout: wallet credit + Kassara fee.
+  const quotes = await Promise.all(presets.map(a => call(`/api/topup-quote?amount=${a}`).catch(() => null)));
+  let anyFee = false;
+  quotes.forEach((q, i) => {
+    if (!q) return;
+    const el = document.querySelector(`[data-pay="${presets[i]}"]`);
+    if (q.fee) { anyFee = true; el.textContent = `pay ${money(q.total)}`; }
+  });
+  const q = quotes.find(Boolean);
+  $("#feeNote").textContent = q && anyFee
+    ? `Top-ups include a ${q.fee_label}. Your wallet receives the top-up amount. Card processing is handled by the payment provider.`
+    : "";
 }
 
 async function loadWallet() {
@@ -132,7 +144,7 @@ async function handleReturn() {
   history.replaceState(null, "", "/");
   try {
     const t = await call(`/api/topup/${encodeURIComponent(id)}`);
-    if (t.status === "succeeded") notice(`Wallet topped up with ${money(t.amount)}.`);
+    if (t.status === "succeeded") notice(`Wallet topped up with ${money(t.amount)}.` + (t.fee ? ` You paid ${money(t.total)} including a ${money(t.fee)} Kassara fee.` : ""));
     else notice(`Top-up ${t.status}.`, "error");
   } catch (err) { notice(err.message, "error"); }
 }
