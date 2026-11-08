@@ -24,6 +24,14 @@ Team: Siam, Hieu, Jason — Oslo sprint hackathon 2026.
 
 Live deployment on cPanel: see [DEPLOY.md](DEPLOY.md).
 
+## Screenshots
+
+| | |
+|---|---|
+| ![Landing page](docs/screenshots/01-landing.png) **Landing page**: what Kassara is, with an example wallet for a merchant (Green Valley Farm). | ![Pricing](docs/screenshots/02-pricing.png) **Pricing**: Starter (free, 3% per top-up), Business €29, Business Pro €79. |
+| ![API docs](docs/screenshots/03-api-docs.png) **API docs**: every endpoint with request and response examples, plus webhooks. | ![Merchant sign in](docs/screenshots/04-merchant-sign-in.png) **Merchant sign in**: businesses log in to their dashboard (balances, ledger, API keys, webhooks, billing). |
+| ![Merchant application](docs/screenshots/05-merchant-apply.png) **Apply as a merchant**: businesses apply and every application is reviewed before API keys are issued. | |
+
 ## Live links and demo logins
 
 | What | Where | Login |
@@ -125,11 +133,11 @@ The demo shop verifies them at `/webhooks/kassara` (`KASSARA_WEBHOOK_SECRET` in 
 
 Kassara earns on top-ups; merchants keep their own product prices.
 
-| Plan | Monthly | Top-up fee |
-|---|---|---|
-| Starter | €0 | 3%, minimum €0.50 |
-| Business | €29 | lower fee, volume allowance |
-| Business Pro | €79 | lowest fee, larger allowance |
+| Plan | Monthly | Top-up fee | Wallet transactions |
+|---|---|---|---|
+| Starter | €0 | 3%, minimum €0.50 | 500 / month, then €0.02 each |
+| Business | €29 | 0% within allowance | 5,000 / month, then €0.01 each |
+| Business Pro | €79 | 0% within allowance | 25,000 / month, then €0.005 each |
 
 Fees and allowances are configurable (`backend/pricing.py`, env overrides `PLAN_<X>_…`).
 
