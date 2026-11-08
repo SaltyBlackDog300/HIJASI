@@ -3,31 +3,74 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#10231e">
+  <meta name="theme-color" content="#153d30">
+  <meta name="description" content="Kassara Wallet API v1: wallets, top-ups, hosted wallet checkout, charges, refunds and errors.">
   <title>Kassara — API docs</title>
-  <link rel="stylesheet" href="/static/css/dashboard.css">
+  <link rel="stylesheet" href="/static/css/site.css">
 </head>
-<body class="site">
-  <header class="site-hero compact">
-    <nav class="site-nav">
-      <a class="brand" href="/"><span class="brand-mark">◈</span><span>kassara<span class="brand-dot">.</span></span></a>
-      <div class="site-links">
-        <a href="/">Home</a>
+
+<body>
+  <header class="site-header">
+    <nav class="nav wrap" aria-label="Main navigation">
+      <a class="brand" href="/" aria-label="Kassara home">
+        <span class="brand-icon" aria-hidden="true"></span>
+        <span>kassara<span class="brand-dot">.</span></span>
+      </a>
+
+      <div class="nav-links">
+        <a href="/#why">Why Kassara</a>
+        <a href="/#how">How it works</a>
         <a href="/pricing">Pricing</a>
-        <a href="/merchant">Sign in</a>
-        <a class="primary-button nav-cta" href="/merchant#register">Apply as merchant <span aria-hidden="true">→</span></a>
+        <a href="/docs" aria-current="page">Developers</a>
       </div>
+
+      <div class="nav-actions">
+        <a href="/merchant">Sign in</a>
+        <a class="btn" href="/merchant#register">
+          Apply as a merchant
+          <span aria-hidden="true">↗</span>
+        </a>
+      </div>
+
+      <details class="mobile-menu">
+        <summary>Menu +</summary>
+        <div class="mobile-links">
+          <a href="/#why">Why Kassara</a>
+          <a href="/#how">How it works</a>
+          <a href="/pricing">Pricing</a>
+          <a href="/docs">API documentation</a>
+          <a href="/merchant">Sign in</a>
+          <a href="/merchant#register">Apply as a merchant ↗</a>
+        </div>
+      </details>
     </nav>
-    <div class="site-hero-copy docs-hero">
-      <span class="eyebrow light">DEVELOPERS</span>
-      <h1>Wallet API v1</h1>
-      <p>All amounts are integers in minor units (100 = 1.00). Call the API from your <b>server</b> with <code>Authorization: Bearer sk_test_…</code>. Wallets are closed-loop: a balance can only be spent at the merchant that issued it, and there is no withdrawal endpoint.</p>
-    </div>
-    <div class="auth-orb orb-one"></div>
   </header>
 
-  <main class="site-main docs">
-    <section class="panel doc-block">
+  <main>
+    <section class="page-hero" aria-labelledby="docs-title">
+      <div class="wrap">
+        <div>
+          <div class="eyebrow">For the people building it</div>
+          <h1 id="docs-title">Wallet API <span class="accent">v1.</span></h1>
+        </div>
+        <p>All amounts are integers in minor units (100 = 1.00). Call the API from your <b>server</b> with <code>Authorization: Bearer YOUR_API_KEY</code>. Wallets are closed-loop: a balance can only be spent at the merchant that issued it, and there is no withdrawal endpoint.</p>
+      </div>
+    </section>
+
+    <div class="wrap docs-layout">
+      <nav class="docs-toc" aria-label="On this page">
+        <div class="eyebrow">On this page</div>
+        <a href="#create-or-fetch-a-wallet">Create or fetch a wallet</a>
+        <a href="#top-up">Top up</a>
+        <a href="#wallet-checkout">Wallet checkout</a>
+        <a href="#direct-charge">Direct charge</a>
+        <a href="#refund">Refund</a>
+        <a href="#transactions">Transactions</a>
+        <a href="#errors">Errors</a>
+      </nav>
+
+      <div class="docs-content">
+      <section class="doc-block" id="create-or-fetch-a-wallet">
       <h2>Create or fetch a wallet</h2>
       <p>Call this when a customer first uses your shop. It is safe to call again. Pass an optional
         <code>email</code> and Kassara emails the customer their checkout codes and a receipt for every
@@ -40,7 +83,7 @@
 GET /v1/wallets/{customer_id}</pre>
     </section>
 
-    <section class="panel doc-block">
+      <section class="doc-block" id="top-up">
       <h2>Top up</h2>
       <p>Creates a pending top-up and returns a checkout URL. Redirect the customer there. Afterwards they are sent to <code>return_url?topup=top_…&amp;status=succeeded</code>. The wallet is credited only after the gateway confirms payment, within your wallet policy limits.</p>
       <p>On the Starter plan the customer pays the top-up plus a Kassara fee (3%, min. €0.50); the wallet is credited with <code>amount</code> only. Show the breakdown before checkout with the quote endpoint. Payment-provider processing fees are separate.</p>
@@ -58,8 +101,8 @@ GET /v1/topups/{topup_id}
 → 200 { "id": "top_…", "status": "succeeded", "amount": 5000, "fee": 150, "total": 5150 }</pre>
     </section>
 
-    <section class="panel doc-block">
-      <h2>Wallet checkout (recommended for orders)</h2>
+      <section class="doc-block" id="wallet-checkout">
+      <h2>Wallet checkout<small>Recommended for orders</small></h2>
       <p>Create a checkout session from your server and redirect the customer to its <code>url</code>. On our hosted page they confirm the payment with a one-time code; only then is the wallet charged. Sessions expire after 15 minutes, can be paid once, lock after 5 wrong codes, and only redirect to your registered website. Always check the result server-side; never trust the <code>status</code> in the return URL.</p>
       <pre class="code">POST /v1/checkout_sessions
 Idempotency-Key: order-1007
@@ -74,8 +117,8 @@ GET /v1/checkout_sessions/{id}
 → 200 { "id": "cs_…", "status": "paid", "amount": 24900, "transaction_id": "txn_…" }</pre>
     </section>
 
-    <section class="panel doc-block">
-      <h2>Direct charge (for pre-authorised, merchant-initiated payments)</h2>
+      <section class="doc-block" id="direct-charge">
+      <h2>Direct charge<small>For pre-authorised, merchant-initiated payments</small></h2>
       <p>Send an <code>Idempotency-Key</code> header so a retried request never charges twice. Returns <code>402 insufficient_funds</code> if the balance is too low.</p>
       <pre class="code">POST /v1/wallets/{customer_id}/charges
 Idempotency-Key: order-1007
@@ -84,28 +127,51 @@ Idempotency-Key: order-1007
 → 201 { "id": "txn_…", "type": "charge", "amount": -24900, "balance": 75100 }</pre>
     </section>
 
-    <section class="panel doc-block">
+      <section class="doc-block" id="refund">
       <h2>Refund</h2>
       <p>Refunds go back into the wallet, never to cash. Leave out <code>amount</code> for a full refund. A refund can never exceed the original charge.</p>
       <pre class="code">POST /v1/refunds
 { "charge_id": "txn_…", "amount": 5000, "reason": "Missing tomatoes" }</pre>
     </section>
 
-    <section class="panel doc-block">
+      <section class="doc-block" id="transactions">
       <h2>Transactions</h2>
       <pre class="code">GET /v1/wallets/{customer_id}/transactions?limit=50</pre>
     </section>
 
-    <section class="panel doc-block">
+      <section class="doc-block" id="errors">
       <h2>Errors</h2>
       <pre class="code">{ "error": { "code": "insufficient_funds", "message": "Wallet balance is too low", "balance": 1200 } }</pre>
       <p>Codes include <code>invalid_api_key</code>, <code>merchant_not_approved</code>, <code>wallet_not_found</code>, <code>insufficient_funds</code>, <code>below_min_topup</code>, <code>above_max_topup</code>, <code>max_balance_exceeded</code>, <code>refund_exceeds_charge</code>, <code>topup_volume_limit</code> and <code>idempotency_conflict</code>.</p>
     </section>
+      </div>
+    </div>
   </main>
 
   <footer class="site-footer">
-    <a class="brand" href="/"><span class="brand-mark">◈</span><span>kassara<span class="brand-dot">.</span></span></a>
-    <span>Test environment. No real money moves.</span>
+    <div class="wrap">
+      <div class="footer-top">
+        <a class="brand" href="/" aria-label="Kassara home">
+          <span class="brand-icon" aria-hidden="true"></span>
+          <span>kassara<span class="brand-dot">.</span></span>
+        </a>
+
+        <div class="footer-links">
+          <a href="/pricing">Pricing</a>
+          <a href="/docs">API docs</a>
+          <a href="/merchant">Merchant sign in</a>
+          <a href="/admin">Admin</a>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <span>Built by Jason, Siam &amp; Hieu · Oslo Sprint 2026</span>
+        <span>
+          Hackathon prototype. Simulated payments only.
+          No real money moves.
+        </span>
+      </div>
+    </div>
   </footer>
 </body>
 </html>

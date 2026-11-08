@@ -3,46 +3,106 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#10231e">
-  <title>Kassara — Pricing</title>
+  <meta name="theme-color" content="#153d30">
   <meta name="description" content="Kassara pricing: Starter (free, 3% top-up fee), Business €29/month and Business Pro €79/month.">
-  <link rel="stylesheet" href="/static/css/dashboard.css">
+  <title>Kassara — Pricing</title>
+  <link rel="stylesheet" href="/static/css/site.css">
 </head>
-<body class="site">
-  <header class="site-hero compact">
-    <nav class="site-nav">
-      <a class="brand" href="/"><span class="brand-mark">◈</span><span>kassara<span class="brand-dot">.</span></span></a>
-      <div class="site-links">
-        <a href="/">Home</a>
+
+<body>
+  <header class="site-header">
+    <nav class="nav wrap" aria-label="Main navigation">
+      <a class="brand" href="/" aria-label="Kassara home">
+        <span class="brand-icon" aria-hidden="true"></span>
+        <span>kassara<span class="brand-dot">.</span></span>
+      </a>
+
+      <div class="nav-links">
+        <a href="/#why">Why Kassara</a>
+        <a href="/#how">How it works</a>
         <a href="/pricing" aria-current="page">Pricing</a>
-        <a href="/docs">API docs</a>
-        <a href="/merchant">Sign in</a>
-        <a class="primary-button nav-cta" href="/merchant#register">Apply as merchant <span aria-hidden="true">→</span></a>
+        <a href="/docs">Developers</a>
       </div>
+
+      <div class="nav-actions">
+        <a href="/merchant">Sign in</a>
+        <a class="btn" href="/merchant#register">
+          Apply as a merchant
+          <span aria-hidden="true">↗</span>
+        </a>
+      </div>
+
+      <details class="mobile-menu">
+        <summary>Menu +</summary>
+        <div class="mobile-links">
+          <a href="/#why">Why Kassara</a>
+          <a href="/#how">How it works</a>
+          <a href="/pricing">Pricing</a>
+          <a href="/docs">API documentation</a>
+          <a href="/merchant">Sign in</a>
+          <a href="/merchant#register">Apply as a merchant ↗</a>
+        </div>
+      </details>
     </nav>
-    <div class="site-hero-copy docs-hero">
-      <span class="eyebrow light">PRICING</span>
-      <h1>Free to start. A flat monthly plan when you grow.</h1>
-      <p>Start on Starter with no subscription and a small fee per top-up, or switch to a monthly plan with no top-up fees once you have more customers.</p>
-    </div>
-    <div class="auth-orb orb-one"></div>
   </header>
 
-  <main class="site-main">
-    <section class="site-section" id="pricing">
-            <div id="pricing-plans" class="plan-grid"></div>
-      <div class="pricing-notes">
-        <p><strong>Payment-processing fees are separate.</strong> The payment provider (card, UPI or local gateway) charges its own processing fee, which the business covers. Kassara's fees are on top of that and never come out of the customer's wallet balance.</p>
-        <p><strong>Starter top-up fee:</strong> the customer pays the top-up plus the Kassara fee, e.g. a €50 top-up costs €51.50 and adds €50 to the wallet. The full breakdown is shown before checkout.</p>
-        <p><strong>Proposed launch prices.</strong> Monthly top-up volume allowances for Business and Business Pro, and the payment and regulatory arrangements for real money, are not final yet. Kassara currently runs in test mode only.</p>
+  <main>
+    <section class="page-hero" aria-labelledby="pricing-title">
+      <div class="wrap">
+        <div>
+          <div class="eyebrow">Pricing</div>
+          <h1 id="pricing-title">Free to start.<br><span class="accent">Grow into a plan.</span></h1>
+        </div>
+        <p>Start on Starter with no subscription and a small fee per top-up, or switch to a flat monthly plan with no top-up fees once your customers keep coming back.</p>
       </div>
     </section>
 
+    <section class="pricing-section" aria-label="Plans">
+      <div class="wrap">
+        <div id="pricing-plans" class="plan-grid"></div>
+      </div>
+    </section>
+
+    <section class="wrap pricing-notes" aria-label="Pricing notes">
+      <article class="pricing-note">
+        <h3>Processing fees are separate.</h3>
+        <p>The payment provider (card, UPI or local gateway) charges its own processing fee, which the business covers. Kassara's fees never come out of the customer's wallet balance.</p>
+      </article>
+      <article class="pricing-note">
+        <h3>Shown before checkout.</h3>
+        <p>On Starter the customer pays the top-up plus the Kassara fee. A €50 top-up costs €51.50 and adds €50 to the wallet, and the full breakdown is shown before they pay.</p>
+      </article>
+      <article class="pricing-note">
+        <h3>Proposed launch prices.</h3>
+        <p>Monthly top-up volume allowances for Business and Business Pro, and the payment and regulatory arrangements for real money, are not final yet. Kassara runs in test mode only.</p>
+      </article>
+    </section>
   </main>
 
   <footer class="site-footer">
-    <a class="brand" href="/"><span class="brand-mark">◈</span><span>kassara<span class="brand-dot">.</span></span></a>
-    <span>Proposed launch prices · Test environment, no real money moves.</span>
+    <div class="wrap">
+      <div class="footer-top">
+        <a class="brand" href="/" aria-label="Kassara home">
+          <span class="brand-icon" aria-hidden="true"></span>
+          <span>kassara<span class="brand-dot">.</span></span>
+        </a>
+
+        <div class="footer-links">
+          <a href="/pricing">Pricing</a>
+          <a href="/docs">API docs</a>
+          <a href="/merchant">Merchant sign in</a>
+          <a href="/admin">Admin</a>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <span>Built by Jason, Siam &amp; Hieu · Oslo Sprint 2026</span>
+        <span>
+          Hackathon prototype. Simulated payments only.
+          No real money moves.
+        </span>
+      </div>
+    </div>
   </footer>
   <script src="/static/js/pricing.js"></script>
 </body>

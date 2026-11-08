@@ -140,14 +140,24 @@
       flex: none;
     }
 
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: rgba(250, 247, 239, .92);
+      -webkit-backdrop-filter: saturate(140%) blur(10px);
+      backdrop-filter: saturate(140%) blur(10px);
+      border-bottom: 1px solid #e4e2d4;
+    }
+
     .nav {
-      min-height: 88px;
+      min-height: 76px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       flex-wrap: wrap;
-      gap: 18px 28px;
-      padding-block: 20px;
+      gap: 14px 28px;
+      padding-block: 14px;
     }
 
     .brand {
@@ -256,6 +266,7 @@
     }
 
     .mobile-menu summary {
+      background: var(--paper);
       cursor: pointer;
       font-size: 14px;
       list-style: none;
@@ -1717,16 +1728,16 @@
 </head>
 
 <body>
-  <header class="wrap">
-    <nav class="nav" aria-label="Main navigation">
+  <header class="site-header">
+    <nav class="nav wrap" aria-label="Main navigation">
       <a class="brand" href="/" aria-label="Kassara home">
         <span class="brand-icon" aria-hidden="true"></span>
         <span>kassara<span class="brand-dot">.</span></span>
       </a>
 
       <div class="nav-links">
-        <a href="#why">Why Kassara</a>
-        <a href="#how">How it works</a>
+        <a href="/#why">Why Kassara</a>
+        <a href="/#how">How it works</a>
         <a href="/pricing">Pricing</a>
         <a href="/docs">Developers</a>
       </div>
@@ -1742,8 +1753,8 @@
       <details class="mobile-menu">
         <summary>Menu +</summary>
         <div class="mobile-links">
-          <a href="#why">Why Kassara</a>
-          <a href="#how">How it works</a>
+          <a href="/#why">Why Kassara</a>
+          <a href="/#how">How it works</a>
           <a href="/pricing">Pricing</a>
           <a href="/docs">API documentation</a>
           <a href="/merchant">Sign in</a>
