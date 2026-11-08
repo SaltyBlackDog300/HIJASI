@@ -1309,6 +1309,42 @@
       padding-top: 18px;
     }
 
+    /* Section bands */
+
+    .developer-section {
+      background: #e6ebd6;
+      border-bottom: 1px solid #d5dcc1;
+    }
+
+    .developer-section .code-panel {
+      box-shadow: 6px 6px 0 #d3dbbf;
+    }
+
+    .final-section {
+      padding-top: 56px;
+    }
+
+    @media (min-width: 801px) {
+      .use-section,
+      .how-section,
+      .developer-section {
+        height: 600px;
+        min-height: 600px;
+      }
+
+      .use-section {
+        padding-block: 48px;
+      }
+
+      .use-section .section-heading {
+        margin-bottom: 36px;
+      }
+
+      .use-section .use-art {
+        height: 150px;
+      }
+    }
+
     /* Responsive layouts */
 
     @media (min-width: 801px) {
@@ -2091,7 +2127,8 @@
     </section>
 
     <!-- 04 — Getting started -->
-    <section class="section wrap" id="how" aria-labelledby="how-title">
+    <section class="section how-section" id="how" aria-labelledby="how-title">
+      <div class="wrap">
       <div class="section-heading">
         <div>
           <div class="eyebrow">From idea to integration</div>
@@ -2139,6 +2176,7 @@
             Track activity and handle refunds from your dashboard.
           </p>
         </article>
+      </div>
       </div>
     </section>
 
@@ -2206,8 +2244,8 @@
     </section>
 
     <!-- 06 — Developers -->
-    <section class="section wrap" aria-labelledby="developer-title">
-      <div class="developer-grid">
+    <section class="section developer-section" aria-labelledby="developer-title">
+      <div class="wrap developer-grid">
         <div class="developer-copy">
           <div class="eyebrow">For the people building it</div>
           <h2 id="developer-title">
