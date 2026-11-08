@@ -91,7 +91,8 @@ def login():
         return jsonify({"error": {"message": "Enter your name and phone number"}}), 400
     cid = f"cust_{phone}"
     payload = {"customer_id": cid, "display_name": name}
-    email = (d.get("email") or "").strip()[:190]
+    # DEMO_CUSTOMER_EMAIL (in .env) receives codes and receipts when the shopper leaves email empty.
+    email = ((d.get("email") or "").strip() or os.getenv("DEMO_CUSTOMER_EMAIL", "").strip())[:190]
     if email:
         payload["email"] = email
     status, data = hijasi("POST", "/v1/wallets", payload)
