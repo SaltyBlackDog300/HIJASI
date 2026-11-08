@@ -365,6 +365,11 @@ def page_docs():
     return send_from_directory(FRONTEND_DIR, "docs.html")
 
 
+@app.get("/pricing")
+def page_pricing():
+    return send_from_directory(FRONTEND_DIR, "pricing.html")
+
+
 # ---------------------------------------------------------------- merchant dashboard API
 
 @app.post("/api/auth/register")
