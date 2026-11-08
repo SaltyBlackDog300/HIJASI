@@ -1,4 +1,6 @@
 import hashlib
+import json
+import time
 import os
 from datetime import date
 import re
@@ -17,6 +19,7 @@ import mailer
 import migrations
 import payments
 import pricing
+import webhooks
 import wallet as W
 from db import query, tx
 from errors import ApiError
@@ -203,15 +206,24 @@ def send_verification_email(merchant_id):
                 ("Confirm my email", f"{config.PUBLIC_URL}/verify-email?token={raw}"))
 
 
+ENTRY_EVENTS = {"topup": "wallet.topup.succeeded", "charge": "wallet.charge.succeeded",
+                "refund": "wallet.refund.succeeded"}
+
+
 def notify_entry(entry_id):
-    """Email the wallet holder a receipt for a ledger entry (if we have their email)."""
+    """Tell the merchant's server (webhook) and the wallet holder (email receipt) about a ledger entry."""
     if not entry_id:
         return
     e = query("""SELECT e.*, w.email AS wallet_email, w.display_name, w.balance AS wallet_balance,
-                        m.business_name, m.currency
+                        w.customer_ref, m.business_name, m.currency
                  FROM ledger_entries e JOIN wallets w ON w.id=e.wallet_id JOIN merchants m ON m.id=e.merchant_id
                  WHERE e.id=%s""", (entry_id,), one=True)
-    if not e or not e["wallet_email"]:
+    if not e:
+        return
+    if e["type"] in ENTRY_EVENTS:
+        webhooks.emit(e["merchant_id"], ENTRY_EVENTS[e["type"]],
+                      {**W.entry_out(e), "customer_id": e["customer_ref"], "currency": e["currency"]})
+    if not e["wallet_email"]:
         return
     amt, bal = mailer.money(abs(e["amount"]), e["currency"]), mailer.money(e["balance_after"], e["currency"])
     shop = e["business_name"]
@@ -826,6 +838,69 @@ def stripe_webhook():
         if t and obj.get("payment_status") == "paid":
             credit_and_notify(t["id"])
     return "ok"
+
+
+# ---------------------------------------------------------------- webhooks (merchant dashboard)
+
+def webhooks_out(mid):
+    m = query("SELECT webhook_url, webhook_secret FROM merchants WHERE id=%s", (mid,), one=True)
+    events = query("SELECT * FROM webhook_events WHERE merchant_id=%s ORDER BY id DESC LIMIT 20", (mid,))
+    return {"url": m["webhook_url"], "secret": m["webhook_secret"], "events": [webhooks.event_out(e) for e in events],
+            "event_types": [t for t in webhooks.EVENT_TYPES if t != "ping"]}
+
+
+@app.get("/api/webhooks")
+@login_required
+def get_webhooks():
+    return jsonify(webhooks_out(g.merchant["id"]))
+
+
+@app.put("/api/webhooks")
+@login_required
+def set_webhook():
+    url = (body().get("url") or "").strip()
+    mid = g.merchant["id"]
+    if url:
+        problem = webhooks.url_problem(url) if len(url) <= 500 else "URL is too long"
+        if problem:
+            raise ApiError(400, "invalid_webhook_url", problem)
+    m = query("SELECT webhook_secret FROM merchants WHERE id=%s", (mid,), one=True)
+    query("UPDATE merchants SET webhook_url=%s, webhook_secret=%s WHERE id=%s",
+          (url or None, m["webhook_secret"] or webhooks.new_secret(), mid))
+    return jsonify(webhooks_out(mid))
+
+
+@app.post("/api/webhooks/rotate")
+@login_required
+def rotate_webhook_secret():
+    query("UPDATE merchants SET webhook_secret=%s WHERE id=%s", (webhooks.new_secret(), g.merchant["id"]))
+    return jsonify(webhooks_out(g.merchant["id"]))
+
+
+@app.post("/api/webhooks/test")
+@login_required
+def test_webhook():
+    mid = g.merchant["id"]
+    if not query("SELECT webhook_url FROM merchants WHERE id=%s", (mid,), one=True)["webhook_url"]:
+        raise ApiError(400, "no_webhook_url", "Save a webhook URL first")
+    public_id = "evt_" + secrets.token_hex(12)
+    payload = {"id": public_id, "type": "ping", "livemode": False, "created": int(time.time()),
+               "data": {"message": "Test event from your Kassara dashboard"}}
+    query("INSERT INTO webhook_events (public_id, merchant_id, type, payload) VALUES (%s,%s,'ping',%s)",
+          (public_id, mid, json.dumps(payload, separators=(",", ":"))))
+    ev = webhooks.deliver(public_id)
+    return jsonify({"event": webhooks.event_out(ev) if ev else None, **webhooks_out(mid)})
+
+
+@app.post("/api/webhooks/events/<event_id>/resend")
+@login_required
+def resend_webhook(event_id):
+    ev = query("SELECT public_id FROM webhook_events WHERE public_id=%s AND merchant_id=%s",
+               (event_id, g.merchant["id"]), one=True)
+    if not ev:
+        raise ApiError(404, "event_not_found", "No event with that id")
+    webhooks.deliver(ev["public_id"])
+    return jsonify(webhooks_out(g.merchant["id"]))
 
 
 # ---------------------------------------------------------------- plans & billing

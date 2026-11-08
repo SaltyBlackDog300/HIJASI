@@ -370,8 +370,59 @@ async function changePlan(planId, names) {
 
 async function loadBilling() { setText("billing-message", ""); renderBilling(await api("/api/billing")); }
 
-const LOADERS = { overview: loadOverview, customers: loadCustomers, transactions: loadTransactions, settings: loadSettings, billing: loadBilling, developers: async () => {} };
-const TITLES = { overview: "Overview", customers: "Customer wallets", transactions: "Transactions", developers: "API keys", billing: "Plan & billing", settings: "Settings" };
+// ---------------------------------------------------------------- webhooks
+
+let webhookSecret = "", secretShown = false;
+
+function renderWebhooks(w) {
+  if (document.activeElement !== $("webhook-url")) $("webhook-url").value = w.url || "";
+  webhookSecret = w.secret || "";
+  $("webhook-secret-row").hidden = !webhookSecret;
+  $("webhook-secret").textContent = secretShown ? webhookSecret : "whsec_" + "•".repeat(16);
+  $("webhook-reveal").textContent = secretShown ? "Hide" : "Show";
+  const rows = w.events.map(e => `<tr>
+      <td><b>${esc(e.type)}</b><br><span class="table-secondary">${esc(e.id)}</span></td>
+      <td><span class="status-pill status-${e.status === "delivered" ? "approved" : e.status === "failed" ? "rejected" : "pending"}">${esc(e.status)}</span>
+        ${e.last_error ? `<br><span class="table-secondary">${esc(e.last_error)}</span>` : ""}</td>
+      <td>${e.attempts}</td>
+      <td class="table-secondary">${esc(dateLabel(e.created_at))}</td>
+      <td><button class="text-button" data-resend="${esc(e.id)}" type="button">Resend</button></td>
+    </tr>`).join("");
+  $("webhook-events").querySelector("tbody").innerHTML = rows || '<tr><td colspan="5" class="empty-row">No events yet.</td></tr>';
+  $("webhook-events").querySelectorAll("[data-resend]").forEach(b => b.addEventListener("click", async () => {
+    b.disabled = true;
+    try { renderWebhooks(await api(`/api/webhooks/events/${encodeURIComponent(b.dataset.resend)}/resend`, { method: "POST" })); }
+    catch (err) { webhookMsg(err.message, true); }
+  }));
+}
+
+function webhookMsg(text, error) { $("webhook-message").style.color = error ? "#ab4c45" : "#2d8b4f"; setText("webhook-message", text); }
+
+async function loadDevelopers() { setText("webhook-message", ""); renderWebhooks(await api("/api/webhooks")); }
+
+$("webhook-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    renderWebhooks(await api("/api/webhooks", { method: "PUT", body: { url: $("webhook-url").value.trim() } }));
+    webhookMsg($("webhook-url").value.trim() ? "Endpoint saved." : "Webhooks turned off.");
+  } catch (err) { webhookMsg(err.message, true); }
+});
+$("webhook-test").addEventListener("click", async () => {
+  try {
+    const r = await api("/api/webhooks/test", { method: "POST" });
+    renderWebhooks(r);
+    if (r.event && r.event.status === "delivered") webhookMsg(`Test event delivered (HTTP ${r.event.last_code}).`);
+    else webhookMsg(`Test event failed: ${r.event ? r.event.last_error : "unknown error"}`, true);
+  } catch (err) { webhookMsg(err.message, true); }
+});
+$("webhook-reveal").addEventListener("click", () => { secretShown = !secretShown; $("webhook-secret").textContent = secretShown ? webhookSecret : "whsec_" + "•".repeat(16); $("webhook-reveal").textContent = secretShown ? "Hide" : "Show"; });
+$("webhook-rotate").addEventListener("click", async () => {
+  try { secretShown = true; renderWebhooks(await api("/api/webhooks/rotate", { method: "POST" })); webhookMsg("New signing secret created. Update it on your server."); }
+  catch (err) { webhookMsg(err.message, true); }
+});
+
+const LOADERS = { overview: loadOverview, customers: loadCustomers, transactions: loadTransactions, settings: loadSettings, billing: loadBilling, developers: loadDevelopers };
+const TITLES = { overview: "Overview", customers: "Customer wallets", transactions: "Transactions", developers: "API keys & webhooks", billing: "Plan & billing", settings: "Settings" };
 
 async function loadPage(page) {
   try { showBanner(""); await LOADERS[page](); }

@@ -66,6 +66,7 @@
         <a href="#direct-charge">Direct charge</a>
         <a href="#refund">Refund</a>
         <a href="#transactions">Transactions</a>
+        <a href="#webhooks">Webhooks</a>
         <a href="#errors">Errors</a>
       </nav>
 
@@ -138,6 +139,28 @@ Idempotency-Key: order-1007
       <h2>Transactions</h2>
       <pre class="code">GET /v1/wallets/{customer_id}/transactions?limit=50</pre>
     </section>
+
+      <section class="doc-block" id="webhooks">
+      <h2>Webhooks<small>Kassara tells your server when money moves</small></h2>
+      <p>Set your endpoint under <b>API keys &amp; webhooks</b> in the dashboard. Kassara then POSTs a JSON event for <code>wallet.topup.succeeded</code>, <code>checkout_session.completed</code>, <code>wallet.charge.succeeded</code> and <code>wallet.refund.succeeded</code>. Answer with any <code>2xx</code> status. Failed deliveries are retried with back-off and can be resent from the dashboard, so handle each event <code>id</code> only once.</p>
+      <pre class="code">POST https://yourshop.com/webhooks/kassara
+Kassara-Event: checkout_session.completed
+Kassara-Signature: t=1762591200,v1=5f2c…
+
+{ "id": "evt_…", "type": "checkout_session.completed", "created": 1762591200,
+  "data": { "id": "cs_…", "status": "paid", "amount": 24900, "currency": "eur",
+            "reference": "order-1007", "customer_id": "cust_42", "transaction_id": "txn_…" } }</pre>
+      <p>Always verify the signature with your signing secret before trusting an event: it is an HMAC-SHA256 of <code>&lt;t&gt;.&lt;raw body&gt;</code>. Reject events older than five minutes.</p>
+      <pre class="code">import hashlib, hmac, time
+
+def verify(header, raw_body, secret):
+    parts = dict(p.split("=", 1) for p in header.split(","))
+    if abs(time.time() - int(parts["t"])) &gt; 300:
+        return False
+    expected = hmac.new(secret.encode(), f"{parts['t']}.".encode() + raw_body,
+                        hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, parts["v1"])</pre>
+      </section>
 
       <section class="doc-block" id="errors">
       <h2>Errors</h2>

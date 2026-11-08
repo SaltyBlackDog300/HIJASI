@@ -210,6 +210,27 @@
               <div id="new-key" hidden></div>
               <button id="roll-key" class="primary-button" type="button">Generate new key <span>→</span></button>
             </div>
+            <div class="panel settings-panel" id="webhooks-panel">
+              <h2>Webhooks</h2>
+              <p>Kassara POSTs a signed JSON event to your server when a top-up succeeds, a wallet checkout is paid, or a charge or refund is made. Verify the <code>Kassara-Signature</code> header with your signing secret (see the <a class="text-button" href="/docs#webhooks">docs</a>).</p>
+              <form id="webhook-form" class="webhook-form">
+                <label>Endpoint URL<input id="webhook-url" type="url" placeholder="https://yourshop.com/webhooks/kassara" maxlength="500"></label>
+                <div class="webhook-actions">
+                  <button class="primary-button" type="submit">Save endpoint <span>→</span></button>
+                  <button id="webhook-test" class="secondary-button" type="button">Send test event</button>
+                </div>
+              </form>
+              <div id="webhook-secret-row" class="key-info" hidden>
+                <span>Signing secret</span><code id="webhook-secret"></code>
+                <button id="webhook-reveal" class="text-button" type="button">Show</button>
+                <button id="webhook-rotate" class="text-button" type="button">Rotate</button>
+              </div>
+              <p id="webhook-message" class="form-message" role="status"></p>
+              <div class="table-scroll"><table id="webhook-events">
+                <thead><tr><th>Event</th><th>Status</th><th>Attempts</th><th>Sent</th><th></th></tr></thead>
+                <tbody><tr><td colspan="5" class="empty-row">No events yet.</td></tr></tbody>
+              </table></div>
+            </div>
             <div class="settings-aside">
               <div class="panel info-panel"><span class="info-icon">⌁</span><h3>One active key</h3><p>Generating a new key revokes the old one straight away. We only store a hash, so a lost key can't be recovered.</p></div>
               <div class="panel info-panel"><span class="info-icon">◎</span><h3>API reference</h3><p>Wallets, top-ups, charges, refunds and idempotency keys.</p><a class="text-button" href="/docs">Open the docs <span>→</span></a></div>

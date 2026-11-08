@@ -74,10 +74,18 @@ def seed_demo_merchant(currency):
 
     seed_demo_application(mid)
 
+    # The demo shop receives Kassara webhooks at /webhooks/kassara (signed with this secret).
+    import webhooks
+    wh_secret = webhooks.new_secret()
+    with tx() as cur:
+        cur.execute("UPDATE merchants SET webhook_url=%s, webhook_secret=%s WHERE id=%s",
+                    (f"{DEMO_FARM_URL.rstrip('/')}/webhooks/kassara", wh_secret, mid))
+
     env_path = os.path.join(HERE, "..", "demo-farm", ".env")
     with open(env_path, "w", encoding="utf-8") as f:
         f.write(f"HIJASI_URL={DEMO_FARM_API_URL}\nHIJASI_SECRET_KEY={raw}\n"
-                f"FARM_URL={DEMO_FARM_URL}\nFARM_SECRET_KEY={secrets.token_hex(16)}\n")
+                f"FARM_URL={DEMO_FARM_URL}\nFARM_SECRET_KEY={secrets.token_hex(16)}\n"
+                f"KASSARA_WEBHOOK_SECRET={wh_secret}\n")
     return raw
 
 

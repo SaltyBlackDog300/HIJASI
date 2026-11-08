@@ -16,9 +16,15 @@ COLUMNS = [
     ("topups", "fee", "BIGINT NOT NULL DEFAULT 0", None),              # Kassara fee, paid on top
     ("topups", "total_charged", "BIGINT NULL", None),                  # amount + fee
     ("topups", "plan", "VARCHAR(20) NULL", None),
+    # merchant webhooks
+    ("merchants", "webhook_url", "VARCHAR(500) NULL", None),
+    ("merchants", "webhook_secret", "VARCHAR(80) NULL", None),
 ]
 
+import webhooks
+
 TABLES = [
+    webhooks.DDL,
     """CREATE TABLE IF NOT EXISTS plan_changes (
       id           INT AUTO_INCREMENT PRIMARY KEY,
       merchant_id  INT NOT NULL,

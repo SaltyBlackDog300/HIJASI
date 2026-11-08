@@ -4,3 +4,4 @@ cryptography>=42
 stripe>=10
 python-dotenv>=1.0
 SQLAlchemy>=2.0,<2.1
+requests>=2.31

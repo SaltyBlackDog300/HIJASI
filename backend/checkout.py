@@ -26,6 +26,7 @@ from flask import abort, g, jsonify, redirect, render_template_string, request, 
 
 import config
 import mailer
+import webhooks
 import wallet as W
 from db import query, tx
 from errors import ApiError
@@ -362,6 +363,9 @@ def register(app, api_key_required, notify_entry=lambda _id: None):
             cur.execute("""UPDATE checkout_sessions SET status='paid', ledger_entry_id=%s, completed_at=%s,
                            code_hash=NULL WHERE id=%s""", (entry["id"], _now(), sid))
         notify_entry(entry["id"])
+        webhooks.emit(s["merchant_id"], "checkout_session.completed",
+                      {**session_out({**s, "status": "paid", "txn_public_id": entry["public_id"]}),
+                       "customer_id": s["customer_ref"], "description": s["description"]})
         return redirect(_with_params(s["success_url"], checkout=sid, status="paid"), code=303)
 
     @app.post("/checkout/<sid>/cancel")

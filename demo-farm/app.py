@@ -4,8 +4,13 @@ This is a completely separate app from HIJASI. It talks to HIJASI only over the
 public REST API, using its secret key from the server side — exactly how a real
 merchant would integrate.
 """
+import hashlib
+import hmac
+import json
 import os
 import re
+import sys
+import time
 import uuid
 
 import requests
@@ -17,6 +22,8 @@ load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 HIJASI_URL = os.getenv("HIJASI_URL", "http://127.0.0.1:5000").rstrip("/").replace("://localhost", "://127.0.0.1")
 HIJASI_KEY = os.getenv("HIJASI_SECRET_KEY", "")
 FARM_URL = os.getenv("FARM_URL", "http://127.0.0.1:5001").rstrip("/")
+
+WEBHOOK_SECRET = os.getenv("KASSARA_WEBHOOK_SECRET", "")
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 app.secret_key = os.getenv("FARM_SECRET_KEY", "farm-dev-secret")
@@ -182,6 +189,37 @@ def checkout_status(checkout_id):
     if status == 200 and data.get("status") != "open":
         session.pop("pending_checkout", None)
     return passthrough(status, data)
+
+
+
+# ---------------------------------------------------------------- Kassara webhooks
+
+def verify_kassara_signature(header, body, secret, tolerance=300):
+    """Kassara-Signature: t=<unix>,v1=<hex HMAC-SHA256 of "<t>.<body>">"""
+    try:
+        parts = dict(p.split("=", 1) for p in header.split(","))
+        ts = int(parts["t"])
+    except (ValueError, KeyError):
+        return False
+    if abs(time.time() - ts) > tolerance:
+        return False
+    expected = hmac.new(secret.encode(), f"{ts}.".encode() + body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, parts.get("v1", ""))
+
+
+@app.post("/webhooks/kassara")
+def kassara_webhook():
+    body = request.get_data()
+    if WEBHOOK_SECRET and not verify_kassara_signature(request.headers.get("Kassara-Signature", ""), body, WEBHOOK_SECRET):
+        return jsonify({"error": "bad signature"}), 400
+    try:
+        event = json.loads(body)
+    except ValueError:
+        return jsonify({"error": "bad json"}), 400
+    # A real shop would mark the order paid / update its records here (and ignore duplicate event ids).
+    verified = "verified" if WEBHOOK_SECRET else "UNVERIFIED (set KASSARA_WEBHOOK_SECRET)"
+    print(f"[farm-webhook] {event.get('type')} {event.get('id')} {verified}", file=sys.stderr, flush=True)
+    return jsonify({"received": True})
 
 
 if __name__ == "__main__":
