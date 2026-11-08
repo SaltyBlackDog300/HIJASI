@@ -1,4 +1,4 @@
-# Kassara (repo: HIJASI)
+# Kassara
 
 **Closed-loop wallet API for businesses in countries that Stripe and PayPal don't serve.**
 
@@ -12,7 +12,7 @@ authorisation (the same model as BigBasket's wallet).
 
 Team: Siam, Hieu, Jason — Oslo sprint hackathon 2026.
 
-## What's in the repo
+## Project structure
 
 | Path | What it is |
 |---|---|
@@ -35,7 +35,7 @@ Live deployment on cPanel: see [DEPLOY.md](DEPLOY.md).
 | ![Farm shop](docs/screenshots/09-farm-shop.png) **Demo shop: Green Valley Farm**: the merchant's own storefront. The shopper signs in and sees their farm wallet. | ![Topped up](docs/screenshots/10-farm-topped-up.png) **After a top-up**: €50 paid by card (plus the Kassara fee shown on the button) lands in the wallet. |
 | ![Kassara checkout](docs/screenshots/11-kassara-checkout.png) **Kassara checkout**: "Pay with wallet" sends the shopper here; they confirm with a one-time code sent to their email. | ![Order paid](docs/screenshots/12-farm-order-paid.png) **Back in the shop**: the order is paid from the wallet and the balance and history update. |
 
-## Live links and demo logins
+## Live demo
 
 | What | Where | Login |
 |---|---|---|
@@ -48,7 +48,7 @@ Live deployment on cPanel: see [DEPLOY.md](DEPLOY.md).
 
 Stripe test card: `4242 4242 4242 4242`, any future date, any CVC.
 
-## Run it
+## Run locally
 
 **1. MySQL + phpMyAdmin**
 
@@ -76,7 +76,7 @@ pip install -r requirements.txt
 python app.py               # http://localhost:5001
 ```
 
-## Demo script
+## Walkthrough
 
 1. **Farm shop** — http://localhost:5001: click *Use the demo shopper account* (or create an account with any
    email + password), top up 50.00, add a veg box, pay with the wallet and confirm with the emailed code.
@@ -102,7 +102,7 @@ python app.py               # http://localhost:5001
 Stripe is only the demo adapter. In production a merchant plugs in the local gateway they already
 use (Easebuzz, Razorpay, Paystack…) — see `backend/payments.py`.
 
-## How money stays correct
+## Ledger integrity
 
 - Money is integers in minor units, never floats.
 - `ledger_entries` is append-only, with `balance_after` on every row.
@@ -112,7 +112,7 @@ use (Easebuzz, Razorpay, Paystack…) — see `backend/payments.py`.
 - Refunds go back to the wallet and can never exceed the original charge.
 - Secret API keys are stored only as SHA-256 hashes.
 
-## How a merchant connects (the farm is the example)
+## Integration
 
 All calls go from the merchant's **server** with its secret key (`Authorization: Bearer sk_test_…`).
 
@@ -124,7 +124,7 @@ All calls go from the merchant's **server** with its secret key (`Authorization:
    goes to the Kassara hosted checkout, confirms with a 6-digit code sent by email → returns to the shop.
 5. **Confirm**: `GET /v1/checkout_sessions/{id}` (never trust the return URL), plus signed webhooks.
 
-### Merchant webhooks
+### Webhooks
 
 Set a URL in the dashboard (*API keys & webhooks*). Events: `wallet.topup.succeeded`,
 `wallet.charge.succeeded`, `wallet.refund.succeeded`, `checkout_session.completed`, `ping`.
@@ -144,7 +144,7 @@ Kassara earns on top-ups; merchants keep their own product prices.
 
 Fees and allowances are configurable (`backend/pricing.py`, env overrides `PLAN_<X>_…`).
 
-## Security (pitch points)
+## Security
 
 - No card data touches Kassara: cards are handled by the payment provider (Stripe in the demo).
 - Every wallet payment is confirmed with a one-time email code: 5-minute expiry, 5 attempts, stored hashed.
@@ -155,7 +155,7 @@ Fees and allowances are configurable (`backend/pricing.py`, env overrides `PLAN_
 - API keys and passwords stored hashed; keys revocable; merchants reviewed and email-verified.
 - Secrets live in server-only `.env` files; code folders are blocked from web access.
 
-## Legal position (short version — not legal advice)
+## Legal model
 
 Kassara is **store credit, not a bank**. Each wallet can only be spent at the business that issued
 it, can't be transferred or cashed out. That closed-loop model is generally outside e-money licensing
@@ -164,14 +164,14 @@ over ~€1M in 12 months the regulator must be notified), and each launch countr
 For launch, top-up money should go straight to the merchant (Stripe Connect or a local gateway) so
 Kassara never holds funds.
 
-## Why this isn't "just Stripe"
+## Role of the payment provider
 
 Stripe (or a local gateway) only moves the money **in**, once per top-up. Kassara runs everything
 after: the per-merchant wallet ledger, code-confirmed checkout with no card fee per purchase, merchant
 vetting, API keys, dashboard and webhooks. Kassara pays the processor's normal fees; the processor is
 swappable (`backend/payments.py`) for mobile money, bank transfer or local gateways.
 
-## Next steps
+## Roadmap
 
 Local payment methods (mobile money, bank transfer), more currencies, SMS codes, plugins for shop
 platforms, live mode with per-merchant payouts.
