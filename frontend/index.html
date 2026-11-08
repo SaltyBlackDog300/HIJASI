@@ -55,6 +55,370 @@ Idempotency-Key: order-1007
       </div>
     </section>
 
+    <section class="site-section" id="why" aria-labelledby="why-title">
+      <style>
+        :where(#why) h2, :where(#why) h3 { font-family: Manrope, Arial, sans-serif; font-weight: 800; color: #183627; margin: 0; }
+        :where(#why) .why-detail.dark h3 { color: #fff; }
+        :where(#why) p { margin: 0; color: #5f7365; line-height: 1.7; }
+        #why .eyebrow { text-transform: uppercase; }
+        #why {
+          height: auto;
+          min-height: 0;
+          padding-block: 64px;
+        }
+
+        .why-heading {
+          display: grid;
+          grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr);
+          gap: 64px;
+          align-items: end;
+          margin-bottom: 32px;
+        }
+
+        .why-heading h2 {
+          font-size: clamp(36px, 4.4vw, 56px);
+          margin-top: 18px;
+          letter-spacing: -2.4px;
+        }
+
+        .why-heading h2 em {
+          font-family: Georgia, serif;
+          font-weight: 400;
+          color: #75814c;
+        }
+
+        .why-heading > p {
+          max-width: 340px;
+          font-size: 14px;
+          padding-bottom: 4px;
+        }
+
+        .why-layout {
+          display: grid;
+          grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr);
+          gap: 20px;
+        }
+
+        .balance-story {
+          background: #e5ebce;
+          border: 1px solid #d4ddba;
+          border-radius: 20px;
+          padding: 32px;
+          position: relative;
+          overflow: hidden;
+        }
+
+        .story-top {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          font-size: 10px;
+          letter-spacing: 1.2px;
+          font-weight: 650;
+          color: #5c6c41;
+        }
+
+        .story-stamp {
+          border: 1px solid #8b9f6970;
+          padding: 6px 8px;
+          border-radius: 5px;
+          font-size: 9px;
+          letter-spacing: .8px;
+          white-space: nowrap;
+        }
+
+        .story-amount {
+          display: flex;
+          align-items: baseline;
+          gap: 13px;
+          margin: 21px 0 25px;
+          flex-wrap: wrap;
+        }
+
+        .story-amount strong {
+          font-family: Georgia, serif;
+          font-size: 68px;
+          font-weight: 400;
+          line-height: 1;
+          letter-spacing: -3px;
+        }
+
+        .story-amount > span {
+          font-size: 12px;
+          color: #5e6b48;
+        }
+
+        .story-receipt {
+          background: #fffdf5;
+          border: 1px solid #d4dcc0;
+          border-radius: 10px;
+          padding: 5px 20px;
+          box-shadow: 0 8px 20px #53643c08;
+        }
+
+        .story-line {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 14px 0;
+          border-bottom: 1px dashed #dfe3cf;
+          font-size: 12px;
+        }
+
+        .story-line:last-child {
+          border-bottom: 0;
+        }
+
+        .story-line > span:first-child {
+          display: grid;
+          place-items: center;
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: #eff1e4;
+          color: #687d42;
+          font-size: 16px;
+          flex: none;
+        }
+
+        .story-line div {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .story-line small {
+          display: block;
+          color: #839071;
+          font-size: 10px;
+          margin-top: 4px;
+        }
+
+        .story-line b {
+          font-weight: 550;
+          white-space: nowrap;
+        }
+
+        .story-line.total {
+          font-weight: 650;
+          color: #2c4b31;
+        }
+
+        .story-line.total b {
+          font-size: 19px;
+          font-family: Georgia, serif;
+        }
+
+        .story-caption {
+          font-size: 11px;
+          color: #64734c;
+          margin-top: 19px;
+          line-height: 1.7;
+        }
+
+        .why-details {
+          display: grid;
+          grid-template-rows: 1fr 1fr;
+          gap: 20px;
+          min-width: 0;
+        }
+
+        .why-detail {
+          border-radius: 16px;
+          padding: 27px 29px;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+        }
+
+        .why-detail.dark {
+          background: #1d4232;
+          color: #fff;
+        }
+
+        .why-detail.warm {
+          background: #f0e5d2;
+          border: 1px solid #e3d8c2;
+        }
+
+        .why-detail .detail-symbol {
+          font-family: Georgia, serif;
+          font-size: 30px;
+          line-height: 1;
+          color: #a5ba72;
+          margin-bottom: 18px;
+        }
+
+        .why-detail.warm .detail-symbol {
+          color: #ac7049;
+        }
+
+        .why-detail h3 {
+          font-size: 23px;
+          line-height: 1.2;
+          letter-spacing: -.7px;
+          margin-bottom: 11px;
+        }
+
+        .why-detail p {
+          font-size: 12px;
+          line-height: 1.8;
+          color: #59664e;
+        }
+
+        .why-detail.dark p {
+          color: #c1cfb8;
+        }
+
+        @media (max-width: 900px) {
+          .why-heading,
+          .why-layout {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 24px;
+          }
+
+          .why-heading > p {
+            max-width: 540px;
+          }
+
+          .why-details {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-rows: auto;
+          }
+        }
+
+        @media (max-width: 560px) {
+          #why {
+            padding-block: 40px;
+          }
+
+          .why-heading {
+            gap: 18px;
+          }
+
+          .why-heading h2 {
+            font-size: 37px;
+            letter-spacing: -1.5px;
+          }
+
+          .balance-story {
+            padding: 24px 20px;
+          }
+
+          .story-top {
+            font-size: 9px;
+            letter-spacing: .7px;
+          }
+
+          .story-amount strong {
+            font-size: 58px;
+          }
+
+          .story-receipt {
+            padding-inline: 14px;
+          }
+
+          .why-details {
+            grid-template-columns: minmax(0, 1fr);
+          }
+
+          .why-detail {
+            padding: 26px;
+          }
+
+          .story-stamp {
+            font-size: 8px;
+            padding: 5px;
+          }
+        }
+      </style>
+
+      <div class="why-heading">
+        <div>
+          <div class="eyebrow">The next visit starts here</div>
+          <h2 id="why-title">
+            One top-up.<br>
+            <em>Plenty of next times.</em>
+          </h2>
+        </div>
+
+        <p>
+          A prepaid balance becomes part of your customer's routine.
+          From the first top-up to the next order, every movement
+          has its place.
+        </p>
+      </div>
+
+      <div class="why-layout">
+        <article
+          class="balance-story"
+          aria-label="Example wallet: a 100 euro top-up, two purchases, and 45 euros remaining"
+        >
+          <div class="story-top">
+            <span>ONE WALLET. MORE THAN ONE VISIT.</span>
+            <span class="story-stamp">EXAMPLE</span>
+          </div>
+
+          <div class="story-amount">
+            <strong>€100</strong>
+            <span>One top-up. Ready when they are.</span>
+          </div>
+
+          <div class="story-receipt">
+            <div class="story-line">
+              <span aria-hidden="true">↙</span>
+              <div>
+                The weekly box
+                <small>First visit · Paid from wallet</small>
+              </div>
+              <b>− €25.00</b>
+            </div>
+
+            <div class="story-line">
+              <span aria-hidden="true">↙</span>
+              <div>
+                A little more for the weekend
+                <small>Next visit · Same wallet</small>
+              </div>
+              <b>− €30.00</b>
+            </div>
+
+            <div class="story-line total">
+              <span aria-hidden="true">↗</span>
+              <div>For whatever comes next</div>
+              <b>€45.00</b>
+            </div>
+          </div>
+
+          <p class="story-caption">
+            Their balance stays ready for the next purchase
+            from your business.
+          </p>
+        </article>
+
+        <div class="why-details">
+          <article class="why-detail dark">
+            <span class="detail-symbol" aria-hidden="true">↳</span>
+            <h3>Your business.<br>Their familiar balance.</h3>
+            <p>
+              Each wallet works only with the merchant that issued it.
+              No cash-out. No transfers between businesses.
+            </p>
+          </article>
+
+          <article class="why-detail warm">
+            <span class="detail-symbol" aria-hidden="true">≋</span>
+            <h3>Every movement<br>has a record.</h3>
+            <p>
+              A top-up, a purchase, a refund. Keep the full picture
+              in your dashboard, with limits you can set for your wallets.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
     <section class="site-section" id="how">
       <div class="eyebrow">HOW IT WORKS</div>
       <h2 class="site-h2">From application to first wallet payment.</h2>
