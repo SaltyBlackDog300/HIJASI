@@ -24,6 +24,19 @@ Team: Siam, Hieu, Jason — Oslo sprint hackathon 2026.
 
 Live deployment on cPanel: see [DEPLOY.md](DEPLOY.md).
 
+## Live links and demo logins
+
+| What | Where | Login |
+|---|---|---|
+| Landing page | https://kassara.org | — |
+| Pricing | https://kassara.org/pricing | — |
+| API docs | https://kassara.org/docs | — |
+| Merchant dashboard | https://kassara.org/merchant | `farm@demo.kassara.org` / `farmdemo123` |
+| Admin panel | https://kassara.org/admin | `ADMIN_TOKEN` from `backend/.env` |
+| Demo shop (Green Valley Farm) | https://demo.kassara.org | *Use the demo shopper account*, or sign up with any email + password |
+
+Stripe test card: `4242 4242 4242 4242`, any future date, any CVC.
+
 ## Run it
 
 **1. MySQL + phpMyAdmin**
@@ -54,7 +67,8 @@ python app.py               # http://localhost:5001
 
 ## Demo script
 
-1. **Farm shop** — http://localhost:5001: log in with any name + phone, top up 50.00, pay, buy a veg box.
+1. **Farm shop** — http://localhost:5001: click *Use the demo shopper account* (or create an account with any
+   email + password), top up 50.00, add a veg box, pay with the wallet and confirm with the emailed code.
 2. **Merchant dashboard** — http://localhost:5000/merchant, log in as `farm@demo.kassara.org` / `farmdemo123`:
    wallet balances, ledger, API key, top-up limits.
 3. **New merchant** — apply at `/merchant#register`, then fill in the verification declaration,
@@ -86,3 +100,67 @@ use (Easebuzz, Razorpay, Paystack…) — see `backend/payments.py`.
 - Top-ups are credited exactly once, only after the gateway confirms.
 - Refunds go back to the wallet and can never exceed the original charge.
 - Secret API keys are stored only as SHA-256 hashes.
+
+## How a merchant connects (the farm is the example)
+
+All calls go from the merchant's **server** with its secret key (`Authorization: Bearer sk_test_…`).
+
+1. **Sign-in → wallet**: `POST /v1/wallets` with the merchant's own customer id (+ email for codes and receipts).
+2. **Balance / history**: `GET /v1/wallets/{customer}` and `GET /v1/wallets/{customer}/transactions`.
+3. **Top-up**: `POST /v1/wallets/{customer}/topups` → returns a card checkout link. Stripe confirms to
+   Kassara (`/webhooks/stripe`, event `checkout.session.completed`), the wallet is credited, the shopper returns.
+4. **Pay an order**: the shop computes the total on its server → `POST /v1/checkout_sessions` → shopper
+   goes to the Kassara hosted checkout, confirms with a 6-digit code sent by email → returns to the shop.
+5. **Confirm**: `GET /v1/checkout_sessions/{id}` (never trust the return URL), plus signed webhooks.
+
+### Merchant webhooks
+
+Set a URL in the dashboard (*API keys & webhooks*). Events: `wallet.topup.succeeded`,
+`wallet.charge.succeeded`, `wallet.refund.succeeded`, `checkout_session.completed`, `ping`.
+Header `Kassara-Signature: t=<unix>,v1=<HMAC-SHA256 of "<t>.<body>">` using the merchant's `whsec_…`
+secret. Failed deliveries retry with back-off (up to 6 attempts) and can be resent from the dashboard.
+The demo shop verifies them at `/webhooks/kassara` (`KASSARA_WEBHOOK_SECRET` in `demo-farm/.env`).
+
+## Business model
+
+Kassara earns on top-ups; merchants keep their own product prices.
+
+| Plan | Monthly | Top-up fee |
+|---|---|---|
+| Starter | €0 | 3%, minimum €0.50 |
+| Business | €29 | lower fee, volume allowance |
+| Business Pro | €79 | lowest fee, larger allowance |
+
+Fees and allowances are configurable (`backend/pricing.py`, env overrides `PLAN_<X>_…`).
+
+## Security (pitch points)
+
+- No card data touches Kassara: cards are handled by the payment provider (Stripe in the demo).
+- Every wallet payment is confirmed with a one-time email code: 5-minute expiry, 5 attempts, stored hashed.
+- Append-only ledger; row locks so balances can't go negative or be double-spent.
+- Idempotency keys: retries and double-clicks never charge twice.
+- Prices set by the shop's server; results verified server-side, not from the return URL.
+- Signed webhooks (HMAC-SHA256 + timestamp); webhook URLs must be public https (SSRF guard).
+- API keys and passwords stored hashed; keys revocable; merchants reviewed and email-verified.
+- Secrets live in server-only `.env` files; code folders are blocked from web access.
+
+## Legal position (short version — not legal advice)
+
+Kassara is **store credit, not a bank**. Each wallet can only be spent at the business that issued
+it, can't be transferred or cashed out. That closed-loop model is generally outside e-money licensing
+(e.g. the EU limited-network exclusion; India's RBI "closed system" PPI). Limits apply (in the EU,
+over ~€1M in 12 months the regulator must be notified), and each launch country is checked first.
+For launch, top-up money should go straight to the merchant (Stripe Connect or a local gateway) so
+Kassara never holds funds.
+
+## Why this isn't "just Stripe"
+
+Stripe (or a local gateway) only moves the money **in**, once per top-up. Kassara runs everything
+after: the per-merchant wallet ledger, code-confirmed checkout with no card fee per purchase, merchant
+vetting, API keys, dashboard and webhooks. Kassara pays the processor's normal fees; the processor is
+swappable (`backend/payments.py`) for mobile money, bank transfer or local gateways.
+
+## Next steps
+
+Local payment methods (mobile money, bank transfer), more currencies, SMS codes, plugins for shop
+platforms, live mode with per-merchant payouts.
