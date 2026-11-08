@@ -30,7 +30,8 @@ Live deployment on cPanel: see [DEPLOY.md](DEPLOY.md).
 |---|---|
 | ![Landing page](docs/screenshots/01-landing.png) **Landing page**: what Kassara is, with an example wallet for a merchant (Green Valley Farm). | ![Pricing](docs/screenshots/02-pricing.png) **Pricing**: Starter (free, 3% per top-up), Business €29, Business Pro €79. |
 | ![API docs](docs/screenshots/03-api-docs.png) **API docs**: every endpoint with request and response examples, plus webhooks. | ![Merchant sign in](docs/screenshots/04-merchant-sign-in.png) **Merchant sign in**: businesses log in to their dashboard (balances, ledger, API keys, webhooks, billing). |
-| ![Merchant application](docs/screenshots/05-merchant-apply.png) **Apply as a merchant**: businesses apply and every application is reviewed before API keys are issued. | |
+| ![Merchant application](docs/screenshots/05-merchant-apply.png) **Apply as a merchant**: businesses apply and every application is reviewed before API keys are issued. | ![Transactions](docs/screenshots/06-dashboard-transactions.png) **Dashboard: transactions**: the append-only ledger of every top-up, charge and refund, with the balance after each one. |
+| ![Customer wallets](docs/screenshots/07-dashboard-wallets.png) **Dashboard: customer wallets**: one wallet per customer, created through the API when they first use the shop. | ![API keys and webhooks](docs/screenshots/08-dashboard-api-keys-webhooks.png) **Dashboard: API keys and webhooks**: the secret key for the shop's server, and the webhook URL Kassara sends signed payment events to. |
 
 ## Live links and demo logins
 
