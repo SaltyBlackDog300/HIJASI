@@ -52,3 +52,46 @@ input { padding: 12px; border: 1px solid var(--line); border-radius: 10px; width
 .empty { color: var(--muted); }
 
 .topups .btn small { display: block; font-size: 10px; font-weight: 600; opacity: .8; margin-top: 2px; pointer-events: none; }
+
+/* ---------- sign in / create account ---------- */
+.auth { display: grid; grid-template-columns: 1.1fr 1fr; margin: 34px 0 48px; border-radius: 22px; overflow: hidden; border: 1px solid var(--line); background: #fff; box-shadow: 0 18px 50px rgba(47,107,58,.08); }
+.auth-hero { position: relative; background: var(--green); color: #fff; padding: 46px 44px; overflow: hidden; }
+.auth-hero::after { content: ""; position: absolute; width: 380px; height: 380px; right: -150px; bottom: -170px; border-radius: 50%; border: 1px solid rgba(255,255,255,.14); box-shadow: 0 0 0 60px rgba(255,255,255,.03), 0 0 0 130px rgba(255,255,255,.02); }
+.auth-produce { display: flex; gap: 8px; margin-bottom: 30px; }
+.auth-produce span { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: rgba(255,255,255,.12); font-size: 1.35rem; }
+.auth-kicker { margin: 0 0 10px; font: 700 .75rem system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #cfe5c9; }
+.auth-hero h1 { margin: 0 0 14px; font-size: clamp(1.9rem, 3.4vw, 2.6rem); line-height: 1.12; }
+.auth-lead { margin: 0 0 28px; max-width: 430px; color: #dbe9d6; line-height: 1.6; }
+.auth-points { position: relative; z-index: 1; list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; font-family: system-ui, sans-serif; }
+.auth-points li { display: grid; gap: 2px; padding-left: 26px; position: relative; }
+.auth-points li::before { content: "✓"; position: absolute; left: 0; top: 1px; width: 17px; height: 17px; border-radius: 50%; background: #cfe5c9; color: var(--green); font-size: .7rem; font-weight: 800; display: grid; place-items: center; }
+.auth-points b { font-size: .95rem; }
+.auth-points span { font-size: .85rem; color: #c4dabe; }
+
+.auth-card { padding: 42px 44px; display: flex; flex-direction: column; justify-content: center; font-family: system-ui, sans-serif; }
+.auth-tabs { display: flex; background: var(--green-2); border-radius: 11px; padding: 4px; margin-bottom: 26px; }
+.auth-tabs button { flex: 1; border: 0; background: none; padding: 9px; border-radius: 8px; font-weight: 650; color: var(--muted); cursor: pointer; }
+.auth-tabs button.active { background: #fff; color: var(--green); box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.auth-card h2 { margin: 0 0 6px; font: 700 1.55rem Georgia, serif; }
+.auth-sub { margin: 0 0 20px; color: var(--muted); font-size: .92rem; }
+.auth-card form { display: grid; }
+.auth-card label { font-size: .82rem; font-weight: 650; margin: 12px 0 6px; }
+.auth-card input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(47,107,58,.13); }
+.auth:not(.signup) .signup-only { display: none; }
+.pass { position: relative; }
+.pass input { padding-right: 64px; }
+.pass-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: 0; background: none; color: var(--green); font-weight: 650; font-size: .8rem; cursor: pointer; padding: 6px 8px; }
+.auth-error { min-height: 1.2em; margin: 10px 0 4px; color: var(--red); font-size: .85rem; }
+.auth-or { display: flex; align-items: center; gap: 12px; margin: 18px 0; color: var(--muted); font-size: .8rem; }
+.auth-or::before, .auth-or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.btn.ghost { background: #fff; color: var(--green); border: 1px solid var(--line); }
+.btn.ghost:hover { background: var(--green-2); }
+.btn:hover:not(:disabled) { filter: brightness(1.06); }
+.auth-fine { margin: 16px 0 0; font-size: .76rem; color: var(--muted); line-height: 1.5; text-align: center; }
+@media (max-width: 860px) {
+  .auth { grid-template-columns: 1fr; margin: 18px 0 32px; }
+  .auth-hero { padding: 30px 24px; }
+  .auth-points, .auth-produce { display: none; }
+  .auth-lead { margin-bottom: 0; }
+  .auth-card { padding: 28px 22px; }
+}

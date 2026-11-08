@@ -115,13 +115,45 @@ function restoreCart() {
 }
 function clearCart() { cart = {}; checkoutId = newCheckoutId(); try { sessionStorage.removeItem("farm_cart"); } catch (_) {} }
 
-$("#loginForm").addEventListener("submit", async e => {
-  e.preventDefault();
-  try {
-    await call("/api/login", { method: "POST", body: Object.fromEntries(new FormData(e.target)) });
-    start();
-  } catch (err) { notice(err.message, "error"); }
+// ---------- sign in / create account
+let authMode = "signin";
+function setAuthMode(mode) {
+  authMode = mode;
+  const up = mode === "signup";
+  $("#loginView").classList.toggle("signup", up);
+  document.querySelectorAll(".auth-tabs button").forEach(b => b.classList.toggle("active", b.dataset.mode === mode));
+  $("#authTitle").textContent = up ? "Create your account" : "Welcome back";
+  $("#authSub").textContent = up ? "It takes a few seconds. Your farm wallet is created with your account."
+                                 : "Sign in to see your wallet and this week's produce.";
+  $("#authBtn").textContent = up ? "Create account" : "Sign in";
+  $("#fPass").autocomplete = up ? "new-password" : "current-password";
+  $("#authError").textContent = "";
+}
+document.querySelectorAll(".auth-tabs button").forEach(b => b.addEventListener("click", () => setAuthMode(b.dataset.mode)));
+$("#showPass").addEventListener("click", () => {
+  const i = $("#fPass"), show = i.type === "password";
+  i.type = show ? "text" : "password";
+  $("#showPass").textContent = show ? "Hide" : "Show";
 });
+
+async function authSubmit(body, btn) {
+  $("#authError").textContent = "";
+  btn.disabled = true;
+  try {
+    await call("/api/login", { method: "POST", body });
+    start();
+  } catch (err) { $("#authError").textContent = err.message; }
+  btn.disabled = false;
+}
+$("#loginForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const f = Object.fromEntries(new FormData(e.target));
+  if (authMode === "signup" && !f.name.trim()) { $("#authError").textContent = "Enter your name."; return; }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.trim())) { $("#authError").textContent = "Enter a valid email address."; return; }
+  if (f.password.length < 6) { $("#authError").textContent = "Password must be at least 6 characters."; return; }
+  authSubmit({ ...f, mode: authMode }, $("#authBtn"));
+});
+$("#demoLogin").addEventListener("click", e => authSubmit({ mode: "demo" }, e.currentTarget));
 
 $("#logout").addEventListener("click", async () => { await call("/api/logout", { method: "POST" }); location.reload(); });
 

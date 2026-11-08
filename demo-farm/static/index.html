@@ -17,15 +17,43 @@
   <main class="wrap">
     <div id="notice" class="notice hidden"></div>
 
-    <section id="loginView" class="panel login hidden">
-      <h1>Fresh from the farm, every week.</h1>
-      <p>Top up your farm wallet once and we deliver all month. No card details at the door.</p>
-      <form id="loginForm">
-        <input name="name" placeholder="Your name" required>
-        <input name="phone" placeholder="Phone number" inputmode="tel" required>
-        <input name="email" type="email" placeholder="Email for receipts (optional)" autocomplete="email">
-        <button class="btn">Continue</button>
-      </form>
+    <section id="loginView" class="auth hidden">
+      <div class="auth-hero">
+        <div class="auth-produce" aria-hidden="true"><span>🥬</span><span>🥚</span><span>🍅</span><span>🥛</span><span>🍯</span><span>🥔</span></div>
+        <p class="auth-kicker">Family farm · weekly delivery</p>
+        <h1>Fresh from the farm, every week.</h1>
+        <p class="auth-lead">Top up your farm wallet once and order all month. Every payment is confirmed with a one-time code sent to your email.</p>
+        <ul class="auth-points">
+          <li><b>Prepay once</b><span>Your balance covers every order.</span></li>
+          <li><b>Delivered Saturdays</b><span>Order by Thursday evening.</span></li>
+          <li><b>No card at the door</b><span>Pay from your wallet in seconds.</span></li>
+        </ul>
+      </div>
+
+      <div class="auth-card">
+        <div class="auth-tabs" role="tablist">
+          <button type="button" class="active" data-mode="signin" role="tab">Sign in</button>
+          <button type="button" data-mode="signup" role="tab">Create account</button>
+        </div>
+        <h2 id="authTitle">Welcome back</h2>
+        <p class="auth-sub" id="authSub">Sign in to see your wallet and this week's produce.</p>
+        <form id="loginForm" novalidate>
+          <label class="signup-only" for="fName">Full name</label>
+          <input class="signup-only" id="fName" name="name" autocomplete="name" placeholder="Jane Doe">
+          <label for="fEmail">Email</label>
+          <input id="fEmail" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+          <label for="fPass">Password</label>
+          <div class="pass">
+            <input id="fPass" name="password" type="password" autocomplete="current-password" placeholder="At least 6 characters" required>
+            <button type="button" id="showPass" class="pass-toggle">Show</button>
+          </div>
+          <p id="authError" class="auth-error" role="alert"></p>
+          <button class="btn wide" id="authBtn">Sign in</button>
+        </form>
+        <div class="auth-or"><span>or</span></div>
+        <button type="button" id="demoLogin" class="btn wide ghost">Use the demo shopper account</button>
+        <p class="auth-fine">Demo shop for the Kassara wallet. Payment codes and receipts are sent to your account email.</p>
+      </div>
     </section>
 
     <div id="shopView" class="layout hidden">

@@ -10,12 +10,14 @@ import json
 import os
 import re
 import sys
+import threading
 import time
 import uuid
 
 import requests
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory, session
+from werkzeug.security import check_password_hash, generate_password_hash
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
@@ -82,22 +84,78 @@ def products():
                     "policy": me.get("policy") if status == 200 else None})
 
 
+# ---------------------------------------------------------------- shopper accounts
+# The farm keeps its own simple shopper accounts (users.json, next to this file). Each account
+# has one Kassara wallet, keyed by a customer_id derived from the email address.
+USERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "users.json")
+DEMO_SHOPPER = "demo@greenvalley.farm"
+EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_users_lock = threading.Lock()
+
+
+def _load_users():
+    try:
+        with open(USERS_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_users(users):
+    tmp = USERS_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(users, f, indent=1)
+    os.replace(tmp, USERS_FILE)
+
+
+def _customer_id(email):
+    return "cust_" + hashlib.sha256(email.encode()).hexdigest()[:20]
+
+
+def _error(msg, status=400):
+    return jsonify({"error": {"message": msg}}), status
+
+
 @app.post("/api/login")
 def login():
     d = request.get_json(silent=True) or {}
-    name = (d.get("name") or "").strip()[:80]
-    phone = re.sub(r"\D", "", d.get("phone") or "")
-    if not name or len(phone) < 6:
-        return jsonify({"error": {"message": "Enter your name and phone number"}}), 400
-    cid = f"cust_{phone}"
+    mode = d.get("mode")
+    if mode == "demo":
+        # Demo shopper: codes and receipts go to DEMO_CUSTOMER_EMAIL (set in .env).
+        email, name = DEMO_SHOPPER, "Demo shopper"
+        receipts = os.getenv("DEMO_CUSTOMER_EMAIL", "").strip()
+    else:
+        email = (d.get("email") or "").strip().lower()[:190]
+        password = d.get("password") or ""
+        if not EMAIL_RE.fullmatch(email):
+            return _error("Enter a valid email address.")
+        if len(password) < 6:
+            return _error("Password must be at least 6 characters.")
+        with _users_lock:
+            users = _load_users()
+            u = users.get(email)
+            if mode == "signup":
+                name = (d.get("name") or "").strip()[:80]
+                if not name:
+                    return _error("Enter your name.")
+                if u:
+                    return _error("An account with this email already exists. Sign in instead.", 409)
+                users[email] = {"name": name, "password": generate_password_hash(password),
+                                "created": int(time.time())}
+                _save_users(users)
+            else:
+                if not u or not check_password_hash(u["password"], password):
+                    return _error("Wrong email or password.", 401)
+                name = u["name"]
+        receipts = email
+    cid = _customer_id(email)
     payload = {"customer_id": cid, "display_name": name}
-    # DEMO_CUSTOMER_EMAIL (in .env) receives codes and receipts when the shopper leaves email empty.
-    email = ((d.get("email") or "").strip() or os.getenv("DEMO_CUSTOMER_EMAIL", "").strip())[:190]
-    if email:
-        payload["email"] = email
+    if receipts:
+        payload["email"] = receipts
     status, data = hijasi("POST", "/v1/wallets", payload)
     if status != 200:
         return passthrough(status, data)
+    session.clear()
     session["customer_id"] = cid
     session["name"] = name
     return jsonify({"ok": True})
